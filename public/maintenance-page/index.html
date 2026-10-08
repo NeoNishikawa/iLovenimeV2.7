@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>iLoveNime — Sedang Dalam Perbaikan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="image" href="/assets/hyouta.jpg" fetchpriority="high">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/maintenance-page/maintenance.css?v=1.2.0">
+</head>
+<body>
+
+<!-- Sprite ikon (disalin dari aplikasi utama agar gaya konsisten) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></symbol>
+  <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 21V9M7 14l5-5 5 5M4 4h16"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16z"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.5S4 15 4 9.6A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 2.6c0 5.4-8 10.9-8 10.9z"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".6" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10.5v4"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></symbol>
+</svg>
+
+<div class="stage">
+  <div class="frame">
+
+    <!-- ====== BACKGROUND ====== -->
+    <div class="bg" aria-hidden="true">
+      <img class="bg-img" src="/assets/hyouta.jpg" alt="">
+      <div class="bg-vignette"></div>
+      <div class="bg-x"></div>
+      <div class="bg-y"></div>
+      <div class="scanlines"></div>
+      <span class="orb orb-a"></span>
+      <span class="orb orb-b"></span>
+      <span class="orb orb-c"></span>
+      <span class="particle" style="top:24%;left:33%;animation-delay:0s"></span>
+      <span class="particle" style="top:48%;left:66%;animation-delay:2s"></span>
+      <span class="particle" style="top:70%;left:52%;animation-delay:4s"></span>
+      <span class="particle" style="top:32%;left:78%;animation-delay:1.5s"></span>
+    </div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <!-- ====== HEADER ====== -->
+    <header class="hdr">
+      <!-- Logo murni tanpa fungsi/tombol (permintaan: logo saja) -->
+      <div class="brand" role="img" aria-label="iLoveNime">
+        <span class="brand-word">iLove<span class="brand-accent">Nime</span></span>
+        <span class="brand-sub">Streaming &amp; Enjoy</span>
+      </div>
+      <div class="hdr-right">
+        <span class="hdr-clock" id="hdrClock" title="Waktu server (Asia/Bangkok)">--:--</span>
+        <span class="hdr-dot"></span>
+      </div>
+    </header>
+
+    <!-- ====== HERO ====== -->
+    <main class="hero">
+      <div class="status-pill">
+        <span class="ping"></span>
+        <span>System Upgrade in Progress</span>
+      </div>
+      <div class="hero-title-wrap">
+        <h1 class="hero-title" aria-label="Maintenance">MAINTENANCE</h1>
+        <span class="hero-vert">SERVER REVAMP • V2.4</span>
+      </div>
+      <h2 class="hero-sub">Kami sedang <b>berganti hosting</b> &amp; melakukan <b>upgrade server</b></h2>
+      <p class="hero-note">
+        <svg class="ico"><use href="#i-bolt"/></svg>
+        Tenang saja — kamu masih bisa menonton anime yang ada di storage kok
+        <svg class="ico"><use href="#i-heart"/></svg>
+      </p>
+      <div class="hero-cta">
+        <a class="btn-cta btn-cta-solid" href="#storage">
+          <svg class="ico"><use href="#i-database"/></svg>
+          Buka Storage Lokal
+        </a>
+        <!-- GANTI LINK: isi URL web baru di sini setiap bulan -->
+        <a class="btn-cta btn-cta-ghost" href="#" data-newsite>
+          <svg class="ico"><use href="#i-bolt"/></svg>
+          Link Web Baru Segera Hadir
+        </a>
+      </div>
+    </main>
+
+    <!-- ====== FOOTER ====== -->
+    <footer class="ftr">
+      <div class="ftr-left">
+        <span class="ftr-sep"></span>
+        <span class="ftr-status"><i class="dot-ok"></i>server akan segera offline</span>
+      </div>
+      <div class="ftr-dots" aria-hidden="true">
+        <span class="dot-a"></span><span class="dot-b"></span><span class="dot-b"></span>
+      </div>
+      <div class="ftr-right">
+        <a class="ftr-link" href="https://sociabuzz.com/neonishikawa/tribe" target="_blank" rel="noopener noreferrer" title="Dukung server (donasi)">
+          <svg class="ico"><use href="#i-heart"/></svg><span>Donasi</span>
+        </a>
+        <a class="ftr-icon ftr-ok" href="#storage" aria-label="Buka storage" title="Buka Local Storage">
+          <svg class="ico"><use href="#i-database"/></svg>
+        </a>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- ====== SECTION STORAGE ====== -->
+<section class="storage" id="storage" aria-label="Local Storage">
+  <div class="storage-head">
+    <div class="storage-titles">
+      <h2>Local Storage</h2>
+      <p>Koleksi &amp; progres tersimpan di browser ini — tetap bisa dibuka saat maintenance.</p>
+    </div>
+    <div class="storage-tools">
+      <div class="searchbox">
+        <svg class="ico"><use href="#i-search"/></svg>
+        <input id="localSearch" type="text" placeholder="Cari di Local Storage…" autocomplete="off" aria-label="Cari di Local Storage">
+      </div>
+      <div class="datamenu-wrap">
+        <button class="btn" id="dataMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">
+          <svg class="ico"><use href="#i-database"/></svg> Data
+          <svg class="ico chev"><use href="#i-chev-down"/></svg>
+        </button>
+        <div class="datamenu" id="dataMenu" hidden role="menu">
+          <button type="button" id="importBtn" role="menuitem"><svg class="ico"><use href="#i-upload"/></svg> Import</button>
+          <button type="button" id="exportBtn" role="menuitem"><svg class="ico"><use href="#i-download"/></svg> Export</button>
+        </div>
+      </div>
+      <button class="btn" id="editModeBtn" type="button" aria-pressed="false">
+        <svg class="ico"><use href="#i-edit"/></svg> Edit Mode
+      </button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+  </div>
+
+  <div class="tabs" id="storageTabs" role="tablist">
+    <button class="tab active" data-tab="All" role="tab">All <span class="count" data-count="All">0</span></button>
+    <button class="tab" data-tab="Complete" role="tab">Complete <span class="count" data-count="Complete">0</span></button>
+    <button class="tab" data-tab="Plan to Watch" role="tab">Plan to Watch <span class="count" data-count="Plan to Watch">0</span></button>
+    <button class="tab" data-tab="Dislike" role="tab">Dislike <span class="count" data-count="Dislike">0</span></button>
+    <button class="tab" data-tab="Favorite" role="tab">Favorite <span class="count" data-count="Favorite">0</span></button>
+  </div>
+
+  <div class="edit-bar" id="editBar" hidden>
+    <span id="editCount">0 dipilih</span>
+    <button class="btn btn-sm" id="selectAllBtn" type="button">Select All</button>
+    <button class="btn btn-sm btn-danger" id="bulkDeleteBtn" type="button" data-label="Hapus">
+      <span class="hold-fill"></span><svg class="ico"><use href="#i-trash"/></svg> Hapus
+    </button>
+    <button class="btn btn-sm btn-ghost" id="cancelEditBtn" type="button">Cancel</button>
+  </div>
+
+  <div class="storage-notice" id="storageNotice" hidden></div>
+  <div class="grid" id="storageGrid"></div>
+  <div class="pager-slot" id="storagePager"></div>
+</section>
+
+<!-- ====== MODAL DETAIL LOKAL ====== -->
+<div class="modal" id="itemModal" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-surface">
+    <button class="modal-x" type="button" data-close aria-label="Tutup">
+      <svg class="ico"><use href="#i-close"/></svg>
+    </button>
+    <div class="modal-body">
+      <div class="modal-poster"><img id="mPoster" src="" alt=""></div>
+      <div class="modal-info">
+        <h3 id="mTitle"></h3>
+        <div class="modal-meta" id="mMeta"></div>
+        <div class="modal-progress" id="mProgress"></div>
+        <div class="modal-genres" id="mGenres"></div>
+        <div class="modal-actions">
+          <button class="btn-cta btn-cta-solid" id="mStream" type="button">
+            <svg class="ico"><use href="#i-play"/></svg> Lanjut Tonton
+          </button>
+          <button class="btn-cta btn-cta-ghost" type="button" data-close>Tutup</button>
+        </div>
+        <div class="modal-episodes" id="mEpisodes" hidden>
+          <div class="panel-title">Episode List</div>
+          <div class="ep-list" id="mEpisodeList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-player" id="mPlayerBox" hidden></div>
+    <div class="modal-notice" id="mNotice" hidden></div>
+  </div>
+</div>
+
+<!-- ====== PLAYER OVERLAY (gaya aplikasi utama) ====== -->
+<div class="pov" id="playerOverlay" hidden role="dialog" aria-modal="true" aria-label="Anime Player">
+  <div class="pov-modal">
+    <div class="pov-bar">
+      <button class="pov-x" type="button" data-pov-close aria-label="Tutup player">
+        <svg class="ico"><use href="#i-close"/></svg>
+      </button>
+      <span class="pov-title">iLoveNime · Player</span>
+      <span class="pov-spacer"></span>
+      <span class="kbd">Esc</span>
+    </div>
+    <div class="pov-grid">
+      <div class="pov-left">
+        <div class="pov-stage" id="povStage">
+          <div class="pov-player" id="povPlayerBox"></div>
+        </div>
+        <div class="watch-title" id="povTitle">—</div>
+        <div class="watch-sub" id="povSub">—</div>
+        <div class="pov-actions" id="povActions"></div>
+        <div class="pov-detail" id="povDetail" hidden>
+          <h4>Detail Anime</h4>
+          <div class="pov-detail-grid" id="povDetailGrid"></div>
+          <div class="pov-synopsis" id="povSynopsis"></div>
+          <div class="pov-genres" id="povGenres"></div>
+        </div>
+      </div>
+      <aside class="pov-right">
+        <div class="pov-note" id="povNote">
+          Mirror aktif dari source streaming. Jika gagal, pilih mirror lain.
+        </div>
+        <div class="panel-title">Episode List</div>
+        <div class="ep-list" id="povEpisodeList"></div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<noscript><div style="padding:16px;text-align:center;color:#94A3B8;font-family:sans-serif">Aktifkan JavaScript untuk melihat Local Storage.</div></noscript>
+<script type="module" src="/maintenance-page/maintenance.js?v=1.2.7"></script>
+</body>
+</html>

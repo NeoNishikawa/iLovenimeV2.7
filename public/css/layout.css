@@ -1,0 +1,271 @@
+/* ==========================================================================
+   ILoveNime — Layout (app shell, sidebar, header, canvas, section)
+   ========================================================================== */
+/* --sidebar-w didaftarkan sebagai <length> agar bisa di-transition: satu
+   variabel menggerakkan lebar sidebar, posisi tombol toggle, dan popup
+   profil secara sinkron & mulus (dukungan: Chromium/Edge/Firefox 128+/Safari 16.4+). */
+@property --sidebar-w{syntax:"<length>";inherits:true;initial-value:260px}
+.app{display:flex;height:100vh;width:100%;overflow:hidden;position:relative;transition:--sidebar-w .35s var(--ease-out)}
+.app.collapsed{--sidebar-w:70px}
+/* Selama animasi collapse/expand: matikan biaya paint mahal yang ikut
+   berubah tiap frame (backdrop-filter header, transisi kartu & tooltip)
+   agar frame stabil 30fps — ini penyebab utama jank sebelumnya */
+.app.animating .header{backdrop-filter:none}
+.app.animating .anime-card{transition:none}
+.app.animating .nav-item::after,
+.app.animating .sb-bottom button::after{transition:none}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  width:var(--sidebar-w); flex:0 0 var(--sidebar-w);
+  background:var(--bg-2); border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  transition: width .35s var(--ease-out), flex-basis .35s var(--ease-out), transform .35s var(--ease-out);
+  overflow:hidden;position:relative;z-index:60;
+}
+.sb-top{display:flex;align-items:center;gap:10px;padding:18px 16px 14px;min-height:72px;position:relative}
+.brand-logo-wrap{position:relative;width:46px;height:46px;flex:0 0 46px;display:grid;place-items:center}
+/* Api GIF hidup di BELAKANG logo: lebih besar dari logo dan pinggirnya memudar
+   lewat mask radial — jadi api tetap terlihat membara mengintip keliling tepi,
+   tanpa kotak hitam, di tema gelap maupun terang. */
+.brand-logo-wrap::before{
+  content:"";position:absolute;inset:-22%;z-index:0;border-radius:50%;pointer-events:none;
+  background:url("/assets/fireball.gif") center/100% 100% no-repeat;
+  -webkit-mask-image:radial-gradient(closest-side, #000 30%, rgba(0,0,0,.55) 58%, transparent 78%);
+  mask-image:radial-gradient(closest-side, #000 30%, rgba(0,0,0,.55) 58%, transparent 78%);
+  filter:saturate(1.35) contrast(1.08) brightness(1.1);
+  animation:flameBreath 2.1s ease-in-out infinite;
+}
+.brand-logo{position:relative;z-index:1;width:40px;height:40px;border-radius:50%;overflow:hidden;
+  background:radial-gradient(circle at 50% 50%, #2a0d00 0%, #080808 100%);
+  border:1px solid rgba(255,150,30,.55);
+  box-shadow:0 0 14px rgba(255,130,0,.55), inset 0 0 12px rgba(255,90,0,.28);
+  isolation:isolate;}
+/* Dulu logo.png (statis, dipaint setelah ::before) menutup rapat fireball.gif,
+   jadi animasi api tak terlihat dan yang tersisa hanya glow merah. Sekarang api
+   GIF dinaikkan ke atas logo dan latar hitamnya dibuang lewat mix-blend-mode:screen. */
+.brand-logo img{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;display:block;filter:drop-shadow(0 0 6px rgba(255,140,0,.45))}
+.brand-logo::before{
+  content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(circle at 50% 62%, rgba(255,120,0,.30), rgba(180,40,0,.12) 60%, transparent 78%);
+}
+/* Denyut membara: hanya opacity & transform (bukan box-shadow/filter) */
+.brand-logo::after{
+  content:"";position:absolute;inset:-6%;z-index:3;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side, rgba(255,150,20,.4), transparent 72%);
+  mix-blend-mode:screen;
+  animation:flameBreath 1.8s ease-in-out infinite;
+}
+.brand-logo:hover::before{filter:saturate(1.3) contrast(1.06) brightness(1.24)}
+[data-theme="light"] .brand-logo{border-color:rgba(217,119,6,.6)}
+.brand{display:flex;align-items:center;gap:11px;min-width:0;flex:1;text-decoration:none;color:inherit;transition:max-width .35s var(--ease-out);max-width:220px}
+.app.collapsed .brand{max-width:48px;gap:0}
+
+.brand-name{font-weight:700;color:var(--text)}
+/* "Love" menyala sesuai tema: merah saat gelap, biru saat terang */
+.brand-name b{color:#E23636;font-weight:800}
+[data-theme="light"] .brand-name b{color:#0284C7}
+
+.sb-user{
+  display:flex;align-items:center;gap:11px;margin:0 12px 14px;padding:10px;
+  border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;
+  transition:border-color .2s ease-in-out, background .2s ease-in-out;
+}
+.sb-user:hover{border-color:var(--gold-2);background:var(--surface-2)}
+.sb-user.active{border-color:var(--gold);box-shadow:0 0 0 1px rgba(255,215,0,.2)}
+.avatar{width:34px;height:34px;flex:0 0 34px;border-radius:10px;font-weight:700;font-size:14px;
+  background:linear-gradient(140deg,var(--primary),#450a0a);color:#fff;border:1px solid rgba(255,255,255,.08)}
+[data-theme="light"] .avatar{background:linear-gradient(140deg,var(--primary),#155E75)}
+.sb-user-info{min-width:0;flex:1;overflow:hidden;transition:opacity .2s ease-in-out, max-width .35s var(--ease-out);max-width:160px}
+.app.collapsed .sb-user-info{opacity:0;max-width:0}
+.app.collapsed .sb-user{justify-content:center;gap:0;padding:8px;margin:0 10px 14px}
+.sb-user-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-user-sub{font-size:11px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 12px 12px}
+.sb-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2);padding:14px 10px 8px;white-space:nowrap;transition:opacity .2s ease-in-out}
+.nav-item{
+  position:relative;width:100%;display:flex;align-items:center;gap:12px;
+  padding:10px 11px;border-radius:10px;margin-bottom:2px;
+  color:var(--text-2);font-size:13.5px;font-weight:500;text-align:left;
+  transition:background .2s ease-in-out,color .2s ease-in-out;
+}
+.nav-item:hover{background:var(--surface);color:var(--text)}
+.nav-item.active{background:var(--primary);color:#fff;box-shadow:0 6px 18px rgba(153,27,27,.35)}
+[data-theme="light"] .nav-item.active{box-shadow:0 6px 18px rgba(8,145,178,.28)}
+.nav-item.active::before{
+  content:"";position:absolute;left:-12px;top:50%;transform:translateY(-50%);
+  width:3px;height:20px;border-radius:0 3px 3px 0;background:var(--gold);
+}
+.nav-label{white-space:nowrap;transition:opacity .2s ease-in-out, max-width .35s var(--ease-out);max-width:160px;overflow:hidden}
+.app.collapsed .nav-label{opacity:0;max-width:0;pointer-events:none}
+/* ---------- Menu Download di sidebar ---------- */
+.dl-wrap{position:relative}
+.dl-caret{margin-left:auto;width:14px;height:14px;transition:transform .2s ease-in-out}
+.dl-wrap.open .dl-caret{transform:rotate(180deg)}
+.dl-menu{
+  margin:4px 0 6px;padding:5px;border-radius:11px;
+  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);
+}
+.dl-item{
+  width:100%;display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border:0;border-radius:8px;background:transparent;
+  color:var(--text-2);font-family:inherit;font-size:13px;text-align:left;
+  transition:background .18s ease-in-out,color .18s ease-in-out;
+}
+.dl-item:hover:not(:disabled){background:var(--bg-2);color:var(--text)}
+.dl-item:disabled{opacity:.55;cursor:not-allowed}
+.dl-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dl-t strong{font-size:12.5px;font-weight:700;color:var(--text)}
+.dl-t small{font-size:10.5px;color:var(--text-2)}
+.dl-note{margin:4px 4px 2px;font-size:10.5px;line-height:1.5;color:var(--text-2)}
+.dl-note code{font-size:10px}
+/* Sidebar collapsed tidak punya ruang untuk submenu: buka lewat panel penuh. */
+.app.collapsed .dl-menu{display:none}
+.app.collapsed .dl-caret{margin-left:0}
+.nav-badge{
+  margin-left:auto;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;
+  background:var(--gold-soft);color:var(--gold-ink);border:1px solid rgba(255,215,0,.25);
+  transition:opacity .2s ease-in-out;
+}
+[data-theme="light"] .nav-badge{border-color:rgba(217,119,6,.3)}
+.app.collapsed .nav-badge,
+.app.collapsed .sb-label,
+.app.collapsed .hold-label{opacity:0;pointer-events:none;width:0;overflow:hidden}
+/* Label/badge cuma dikecilkan ke width:0, tapi slot gap-nya tetap dihitung flex —
+   akibatnya ikon nav tergeser ~6px dari center rail. Gap dimatikan, dan badge
+   dipaksa 0px karena padding+border-nya tadi masih menyisakan 16px (geser ~20px). */
+.app.collapsed .nav-item{justify-content:center;padding:11px 0;gap:0}
+.app.collapsed .nav-badge{margin-left:0;min-width:0;padding:0;border-width:0}
+.app.collapsed .sb-top{padding:14px 8px;justify-content:center}
+.app.collapsed .nav-item::after,
+.app.collapsed .sb-bottom button::after{
+  content:attr(data-label);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) scale(.94);
+  background:var(--surface-2);color:var(--text);border:1px solid var(--border);
+  padding:6px 10px;border-radius:8px;font-size:12px;white-space:nowrap;
+  opacity:0;pointer-events:none;transition:.15s ease;z-index:70;box-shadow:var(--shadow);
+}
+.app.collapsed .nav-item:hover::after,
+.app.collapsed .sb-bottom button:hover::after{opacity:1;transform:translateY(-50%) scale(1)}
+
+.sb-bottom{padding:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.sb-bottom .nav-item{margin-bottom:0}
+.holdable{position:relative;overflow:hidden;isolation:isolate}
+.holdable .hold-fill{position:absolute;inset:0;z-index:-1;background:rgba(255,255,255,.28);transform:scaleX(var(--hold,0));transform-origin:left center;pointer-events:none}
+.nav-item.danger{color:#f87171}
+.nav-item.danger:hover{background:rgba(139,0,0,.22);color:#fca5a5}
+
+/* Toggle collapse: ditempel di tepi sidebar, tidak lagi overlap konten.
+   left dihitung dari lebar sidebar dan translate -50% dari lebar tombol sendiri,
+   jadi center-nya selalu tepat di garis tepi (26px desktop / 34px layar sentuh). */
+.sb-toggle{
+  position:absolute; top:24px; left:var(--sidebar-w); translate:-50% 0;
+  width:26px;height:26px;border-radius:50%;
+  display:grid;place-items:center;color:var(--text-2);
+  border:1px solid var(--border);background:var(--surface); z-index:65;
+  box-shadow:0 4px 12px rgba(0,0,0,.35);
+  /* left mengikuti --sidebar-w yang beranimasi; transition left tetap ada
+     sebagai fallback browser tanpa @property */
+  transition: left .35s var(--ease-out), background .2s ease-in-out, color .2s ease-in-out, transform .2s ease-in-out;
+}
+.sb-toggle:hover{ background:var(--gold);color:#1a1200;border-color:var(--gold); transform:scale(1.12); }
+.sb-toggle .ico{width:13px;height:13px;stroke-width:2.4}
+
+/* Hamburger (mobile only, disembunyikan di desktop) */
+.hamburger{
+  display:none;width:42px;height:42px;border-radius:10px;flex:0 0 auto;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  align-items:center;justify-content:center;transition:border-color .2s ease-in-out;
+}
+.hamburger:hover{border-color:var(--gold-2);color:var(--gold)}
+.hamburger .ico{width:19px;height:19px}
+
+/* Overlay drawer mobile */
+.drawer-overlay{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);animation:fadeIn .2s ease-in-out}
+[data-theme="light"] .drawer-overlay{background:rgba(15,23,42,.35)}
+
+/* ---------- Main / Header ---------- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.header{
+  flex:0 0 auto;display:flex;align-items:center;gap:14px;
+  padding:16px 32px;border-bottom:1px solid var(--border);
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(10px);z-index:40;position:relative;
+}
+.search-wrap{
+  position:relative;flex:1;max-width:620px;display:flex;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:0 12px;height:44px;transition:border-color .2s ease-in-out, box-shadow .2s ease-in-out;
+}
+.search-wrap:focus-within{border-color:var(--gold-2);box-shadow:var(--glow)}
+.search-wrap .ico{color:var(--text-2);width:17px;height:17px}
+.search-wrap input{flex:1;background:none;border:none;outline:none;font-size:14px;min-width:0}
+.search-wrap input::placeholder{color:var(--text-2)}
+.search-clear{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--text-2);transition:.2s ease-in-out}
+.search-clear:hover{background:var(--accent-soft);color:var(--text)}
+.search-clear .ico{width:14px;height:14px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+/* ---------- Canvas & Section ---------- */
+.main-scroll{flex:1;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth}
+.main-scroll.locked{overflow:hidden}
+.canvas{
+  padding:26px 32px 72px;position:relative;z-index:1;
+  display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:20px;row-gap:42px;max-width:1720px;margin:0 auto;
+}
+.canvas > section{grid-column:1 / -1;min-width:0}
+/* Slide 6×3: tepat 3 baris — baris ke-4+ disembunyikan (item di-slice per halaman) */
+.card-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(3,auto);gap:20px}
+/* Sidebar tertutup di desktop: kanvas tersisa lebih lebar, jadi grid naik ke
+   7 kolom. Jumlah kartu per halaman TIDAK diangka manual lagi — pageSize() di
+   reference-app.js menghitungnya dari kolom yang aktif, jadi base 5/6 kolom
+   boleh berubah tanpa membuat baris terakhir bolong. Hanya >=1280px — laptop
+   1024-1279 (4 kolom), tablet, dan mobile (3 kolom) dibiarkan apa adanya
+   sesuai responsive.css. */
+@media (min-width:1280px){
+  .app.collapsed .card-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
+}
+
+.sec-head{display:flex;align-items:flex-end;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.sec-title{font-size:19px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.sec-title .bar{width:4px;height:20px;border-radius:99px;background:linear-gradient(var(--gold),var(--gold-2))}
+.sec-sub{font-size:12.5px;color:var(--text-2);padding-bottom:2px}
+.sec-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* Profil */
+.profile-card{
+  display:flex;align-items:center;gap:22px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px 22px;position:relative;overflow:hidden;
+}
+.profile-card::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(600px 160px at 0% 0%, var(--gold-soft), transparent 70%)}
+.pc-id{display:flex;align-items:center;gap:14px;min-width:250px;position:relative}
+.pc-avatar{width:56px;height:56px;border-radius:16px;font-size:20px;font-weight:800;color:#fff;
+  background:linear-gradient(140deg,var(--primary),#3b0a0a);border:1px solid rgba(255,255,255,.08);box-shadow:0 8px 22px rgba(0,0,0,.35)}
+[data-theme="light"] .pc-avatar{background:linear-gradient(140deg,var(--primary),#155E75)}
+.pc-name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.pc-edit{
+  display:none;width:28px;height:28px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);
+  align-items:center;justify-content:center;
+  transition:border-color .2s ease-in-out,color .2s ease-in-out,transform .2s var(--ease-out);
+}
+.pc-edit:hover{border-color:var(--gold-2);color:var(--gold);transform:translateY(-1px)}
+.pc-edit .ico{width:14px;height:14px}
+.pc-title{font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--gold-soft);color:var(--gold);border:1px solid rgba(255,215,0,.25)}
+[data-theme="light"] .pc-title{border-color:rgba(217,119,6,.3)}
+.pc-handle{font-size:12.5px;color:var(--text-2);margin-top:3px}
+.pc-level{flex:1;min-width:250px;position:relative}
+.pc-level-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:7px}
+.pc-level-top b{color:var(--gold);font-weight:700}
+.pc-level-top span{color:var(--text-2)}
+.pc-stats{display:flex;gap:12px;position:relative}
+.stat-box{min-width:132px;padding:12px 16px;border-radius:12px;border:1px solid var(--border);background:var(--bg-2)}
+.stat-label{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--text-2)}
+.stat-value{font-size:19px;font-weight:700;margin-top:5px}
+.stat-value small{font-size:11px;font-weight:500;color:var(--text-2);margin-left:3px}
+
+.bar{height:7px;border-radius:99px;background:var(--border);overflow:hidden;position:relative}
+.bar > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold-2),var(--gold));transition:width .5s var(--ease-out)}
+.bar.thin{height:5px}

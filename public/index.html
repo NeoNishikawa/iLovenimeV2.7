@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>iLoveNime V2.7</title>
+<link rel="icon" href="/assets/logo.png" type="image/png" />
+<link rel="stylesheet" href="/css/tokens.css?v=2.3.9" />
+<link rel="stylesheet" href="/css/base.css" />
+<link rel="stylesheet" href="/css/layout.css?v=2.5.0" />
+<link rel="stylesheet" href="/css/components.css?v=2.12.0" />
+<link rel="stylesheet" href="/css/screen-time.css?v=1.0.1" />
+<link rel="stylesheet" href="/css/morph.css?v=2.4.1" />
+<link rel="stylesheet" href="/css/continue.css?v=2.3.2" />
+<link rel="stylesheet" href="/css/motion.css?v=2.3.6" />
+<link rel="stylesheet" href="/css/animations.css" />
+<link rel="stylesheet" href="/css/responsive.css" />
+<link rel="stylesheet" href="/css/seal.css?v=1.1.0" />
+<script type="importmap">{ "imports": { "three": "/vendor/three/three.module.js", "animejs": "/vendor/animejs/anime.esm.min.js" } }</script>
+<script>
+// Kunci integritas diperiksa SEBELUM aplikasi apa pun dimuat, supaya mode
+// terkunci aktif walau modul gagal jalan. Bukan pengaman sesungguhnya:
+// quem punya DevTools bisaywremove. Ini penanda saja.
+window.__ILN_SEAL__ = true;
+</script>
+  <meta name="iln-seal" content="copyright LoveNime" />
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 1 1-2.4-5.9"/><path d="M20.5 4v5h-5"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4.6L6 21z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M9 21h6M12 17v4"/></symbol>
+  <symbol id="i-mobile" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 21V9M7 14l5-5 5 5M4 4h16"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.6l1-2h7.8l1 2h1.6A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/><path d="M9 6v12"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/><path d="M15 6v12"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".6" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.5S4 15 4 9.6A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 2.6c0 5.4-8 10.9-8 10.9z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.8 7L4 21l2-4.2A8 8 0 1 1 21 12z"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10.5v4"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pip" viewBox="0 0 24 24"><path d="M21 5.5H3v13h18z"/><path d="M12.5 12.5H18V16h-5.5z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-thumb-down" viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h4v12h-4"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5 12.9a10 10 0 0 1 14 0"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/></symbol>
+  <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M2 8.8a15 15 0 0 1 4.2-2.6"/><path d="M10.7 5.1c4-.4 8.1.9 11.3 3.7"/><path d="M5 12.9a10 10 0 0 1 5.2-2.7"/><path d="M19 12.9a10 10 0 0 0-2-1.5"/><path d="m2 2 20 20"/></symbol>
+  <linearGradient id="gradFav" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#FFD700"/>
+    <stop offset="1" stop-color="#FF6FA5"/>
+  </linearGradient>
+</svg>
+
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar" aria-label="Menu utama">
+    <div class="sb-top">
+      <a class="brand" href="#" onclick="return false">
+        <span class="brand-logo-wrap">
+          <span class="brand-logo">
+            <img src="/assets/logo.png" alt="iLoveNime" onerror="this.style.display='none'" />
+          </span>
+        </span>
+        <span class="brand-name">i<b>Love</b>Nime V2.7</span>
+      </a>
+    </div>
+
+    <div class="sb-user" id="sbUser" title="Klik untuk buka profil">
+      <div class="avatar" id="sbAvatar"></div>
+      <div class="sb-user-info">
+        <div class="sb-user-name" id="sbName">Dummy User</div>
+        <div class="sb-user-sub" id="sbLevel">Level 1 · Watcher Novice</div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-label">Menu</div>
+      <button class="nav-item active" data-nav="dashboard" data-label="Dashboard">
+        <svg class="ico"><use href="#i-home"/></svg><span class="nav-label">Dashboard</span>
+      </button>
+      <button class="nav-item" data-nav="continue" data-label="Lanjutkan Menonton">
+        <svg class="ico"><use href="#i-play"/></svg><span class="nav-label">Lanjutkan Menonton</span>
+        <span class="nav-badge" id="navContinueCount">0</span>
+      </button>
+      <button class="nav-item" data-nav="update" data-label="New Update">
+        <svg class="ico"><use href="#i-refresh"/></svg><span class="nav-label">New Update</span>
+      </button>
+      <button class="nav-item" data-nav="storage" data-label="Local Storage">
+        <svg class="ico"><use href="#i-bookmark"/></svg>
+        <span class="nav-label">Local Storage</span>
+        <span class="nav-badge" id="navStorageCount">0</span>
+      </button>
+
+      <div class="sb-label">Support &amp; Feedback</div>
+      <button class="nav-item" data-support="about" data-label="About">
+        <svg class="ico"><use href="#i-info"/></svg><span class="nav-label">About</span>
+      </button>
+      <button class="nav-item" data-support="donate" data-label="Donate">
+        <svg class="ico"><use href="#i-heart"/></svg><span class="nav-label">Donate</span>
+      </button>
+      <button class="nav-item" data-support="feedback" data-label="Feedback">
+        <svg class="ico"><use href="#i-chat"/></svg><span class="nav-label">Feedback</span>
+      </button>
+
+      <!-- Menu Download: hanya di web. EXE sudah memakai aplikasinya sendiri
+           dan APK memblokir navigasi ke luar, jadi di sana tombol ini
+           dibuang saat runtime, bukan sekadar disembunyikan. -->
+      <div class="dl-wrap" id="dlWrap">
+        <button class="nav-item" id="dlToggle" aria-expanded="false" aria-controls="dlMenu" aria-haspopup="true" data-label="Download">
+          <svg class="ico"><use href="#i-download"/></svg>
+          <span class="nav-label">Download</span>
+          <svg class="ico dl-caret"><use href="#i-chev-down"/></svg>
+        </button>
+        <div class="dl-menu" id="dlMenu" role="menu" aria-labelledby="dlToggle" hidden>
+          <button class="dl-item" type="button" role="menuitem" data-dl="exe">
+            <svg class="ico"><use href="#i-monitor"/></svg>
+            <span class="dl-t"><strong>Windows .exe</strong><small>Installer 91,5 MB</small></span>
+          </button>
+          <button class="dl-item" type="button" role="menuitem" data-dl="apk">
+            <svg class="ico"><use href="#i-mobile"/></svg>
+            <span class="dl-t"><strong>Android .apk</strong><small>Android 8.0+ / 1,5 MB</small></span>
+          </button>
+          <p class="dl-note" id="dlNote" hidden>Link unduhan belum diisi. Isi di <code>DOWNLOAD_LINKS</code> pada <code>reference-app.js</code>.</p>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sb-bottom">
+      <button class="nav-item danger holdable" id="deleteDataBtn" data-label="Delete Data">
+        <span class="hold-fill"></span>
+        <svg class="ico"><use href="#i-trash"/></svg>
+        <span class="nav-label hold-label">Delete Data</span>
+      </button>
+    </div>
+  </aside>
+
+  <button class="sb-toggle" id="sbToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+    <svg class="ico" id="sbToggleIcon"><use href="#i-chev-left"/></svg>
+  </button>
+
+  <div class="main">
+    <header class="header">
+      <button class="hamburger" id="hamburgerBtn" aria-label="Buka menu" aria-expanded="false">
+        <svg class="ico"><use href="#i-menu"/></svg>
+      </button>
+      <div class="search-zone">
+        <div class="search-wrap">
+          <button class="search-morph-btn" id="searchMorphBtn" type="button" data-mode="search" aria-label="Cari — atau bersihkan pencarian" title="Cari / bersihkan pilihan">
+            <span class="smb-icon smb-search"><svg class="ico"><use href="#i-search"/></svg></span>
+            <span class="smb-icon smb-clear"><svg class="ico"><use href="#i-close"/></svg></span>
+          </button>
+          <input id="globalSearch" type="text" placeholder="Cari anime…" autocomplete="off" spellcheck="false" />
+          <div class="search-chips" id="searchFilterChips" hidden></div>
+        </div>
+        <div class="search-hint" id="searchHint" hidden>
+          <span class="sh-title">Cari sesuai pilihan</span>
+          <div class="sh-tags" id="searchHintTags"></div>
+          <span class="sh-cta">Tekan <b>Enter</b> atau ikon cari</span>
+        </div>
+      </div>
+
+      <div class="genre-filter gf-header" data-gf="header" style="margin-left:10px">
+        <button class="gf-trigger" type="button" aria-haspopup="true" aria-expanded="false">
+          <svg class="ico"><use href="#i-filter"/></svg>
+          <span class="gf-label">All Genre</span>
+          <svg class="ico gf-chev"><use href="#i-chev-down"/></svg>
+        </button>
+        <div class="gf-panel" hidden>
+          <div class="gf-head">
+            <span class="gf-title">Filter Genre — Main Search</span>
+            <div class="gf-head-actions">
+              <button class="gf-mini-btn" data-gf-clear>Clear All</button>
+            </div>
+          </div>
+          <div class="gf-grid"></div>
+        </div>
+      </div>
+
+      <div class="compact-filters custom-filters" data-filter-scope="main">
+        <div class="styled-filter" data-filter="mainType" data-label="Tipe"><button class="gf-trigger" type="button" aria-haspopup="true" aria-expanded="false"><span class="gf-label">Tipe</span><svg class="ico gf-chev"><use href="#i-chev-down"/></svg></button><div class="gf-panel" hidden><div class="gf-grid"></div></div></div>
+        <div class="styled-filter" data-filter="mainStatus" data-label="Status"><button class="gf-trigger" type="button" aria-haspopup="true" aria-expanded="false"><span class="gf-label">Status</span><svg class="ico gf-chev"><use href="#i-chev-down"/></svg></button><div class="gf-panel" hidden><div class="gf-grid"></div></div></div>
+      </div>
+
+      <div class="header-right">
+        <div class="net-pill" id="netStatus" data-net="good" role="img" aria-label="Memeriksa jaringan…" title="Memeriksa jaringan…">
+          <svg class="ico"><use href="#i-wifi" id="netStatusIcon"/></svg>
+        </div>
+        <button class="theme-morph-btn" type="button" data-theme-toggle title="Ganti tema" aria-label="Ganti tema terang/gelap">
+          <span class="tmb-icon tmb-moon"><svg class="ico"><use href="#i-moon"/></svg></span>
+          <span class="tmb-icon tmb-sun"><svg class="ico"><use href="#i-sun"/></svg></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="main-scroll" id="mainScroll">
+      <div class="canvas">
+
+        <section id="profileSection">
+          <div class="profile-card">
+            <div class="pc-id">
+              <div class="pc-avatar" id="pcAvatar"></div>
+              <div>
+                <div class="pc-name">
+                  <span id="pcName">Dummy User</span>
+                  <span class="pc-title" id="pcTitle">Watcher Novice</span>
+                  <button class="pc-edit" id="pcEditBtn" aria-label="Edit nama dan foto" title="Edit profil">
+                    <svg class="ico"><use href="#i-edit"/></svg>
+                  </button>
+                </div>
+                <div class="pc-handle" id="pcHandle">@dummy</div>
+              </div>
+            </div>
+            <div class="pc-level">
+              <div class="pc-level-top">
+                <b id="pcLevelText">Level 1</b>
+                <span id="pcXpText">0 / 10 XP</span>
+              </div>
+              <div class="bar"><i id="pcXpBar" style="width:0%"></i></div>
+            </div>
+            <div class="pc-stats">
+              <div class="stat-box">
+                <div class="stat-label">Storage</div>
+                <div class="stat-value" id="pcStorage">0 <small>Titles</small></div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Episode Watched</div>
+                <div class="stat-value" id="pcEpisodes">0 <small>Episodes</small></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="continueSection">
+          <div class="sec-head">
+            <div class="sec-title"><span class="bar"></span>Lanjutkan Menonton</div>
+            <div class="sec-sub" id="continueSub">—</div>
+          </div>
+          <div class="cw-rail-wrap">
+            <button class="cw-nav cw-nav-prev" type="button" data-cw-prev aria-label="Geser ke kiri" title="Sebelumnya">
+              <svg class="ico"><use href="#i-chev-left"/></svg>
+            </button>
+            <div class="cw-rail" id="continueRail" role="list" aria-label="Daftar episode berikutnya"></div>
+            <button class="cw-nav cw-nav-next" type="button" data-cw-next aria-label="Geser ke kanan" title="Berikutnya">
+              <svg class="ico"><use href="#i-chev-right"/></svg>
+            </button>
+          </div>
+        </section>
+
+        <section id="searchSection" hidden>
+          <div class="sec-head">
+            <div class="sec-title"><span class="bar"></span>Search Results</div>
+            <div class="sec-sub" id="searchSub"></div>
+            <div class="sec-actions">
+              <button class="btn btn-sm" id="clearSearchBtn">
+                <svg class="ico"><use href="#i-close"/></svg> Clear Search
+              </button>
+              </div>
+          </div>
+          <div class="card-grid" id="searchGrid"></div>
+          <div id="searchPager" class="pager-slot"></div>
+        </section>
+
+        <section id="updateSection">
+          <div class="sec-head">
+            <div class="sec-title"><span class="bar"></span>New Update</div>
+            <div class="sec-sub" id="updateSub">—</div>
+          </div>
+          <div class="card-grid" id="updateGrid"></div>
+        </section>
+
+        <section id="storageSection">
+          <div class="sec-head">
+            <div class="sec-title"><span class="bar"></span>Local Storage</div>
+            <div class="sec-sub" id="storageSub">Koleksi pribadi tersimpan di browser</div>
+          </div>
+
+          <div class="toolbar">
+            <label class="tool-search">
+              <svg class="ico"><use href="#i-search"/></svg>
+              <input id="localSearch" type="text" placeholder="Cari di Local Storage…" autocomplete="off" />
+            </label>
+
+            <div class="genre-filter gf-storage" data-gf="storage">
+              <button class="gf-trigger" type="button" aria-haspopup="true" aria-expanded="false">
+                <svg class="ico"><use href="#i-filter"/></svg>
+                <span class="gf-label">All Genre</span>
+                <svg class="ico gf-chev"><use href="#i-chev-down"/></svg>
+              </button>
+              <div class="gf-panel" hidden>
+                <div class="gf-head">
+                  <span class="gf-title">Filter Genre — Local Storage</span>
+                  <div class="gf-head-actions">
+                    <button class="gf-mini-btn" data-gf-clear>Clear All</button>
+                  </div>
+                </div>
+                <div class="gf-grid"></div>
+              </div>
+            </div>
+
+            <div class="compact-filters storage-filters custom-filters" data-filter-scope="storage">
+              <div class="styled-filter" data-filter="storageType" data-label="Tipe"><button class="gf-trigger" type="button" aria-haspopup="true" aria-expanded="false"><span class="gf-label">Tipe</span><svg class="ico gf-chev"><use href="#i-chev-down"/></svg></button><div class="gf-panel" hidden><div class="gf-grid"></div></div></div>
+              <div class="styled-filter" data-filter="storageStatus" data-label="Status"><button class="gf-trigger" type="button" aria-haspopup="true" aria-expanded="false"><span class="gf-label">Status</span><svg class="ico gf-chev"><use href="#i-chev-down"/></svg></button><div class="gf-panel" hidden><div class="gf-grid"></div></div></div>
+            </div>
+            <div class="data-menu-wrap">
+              <button class="btn" id="dataMenuBtn" type="button" aria-haspopup="true" aria-expanded="false"><svg class="ico"><use href="#i-database"/></svg> Data <svg class="ico gf-chev"><use href="#i-chev-down"/></svg></button>
+              <div class="data-menu" id="dataMenu" hidden role="menu">
+                <button type="button" id="importBtn" role="menuitem"><svg class="ico"><use href="#i-upload"/></svg> Import</button>
+                <button type="button" id="exportBtn" role="menuitem"><svg class="ico"><use href="#i-download"/></svg> Export</button>
+                <button type="button" id="editModeBtn" role="menuitem"><svg class="ico"><use href="#i-edit"/></svg> Edit Mode</button>
+              </div>
+            </div>
+            <input type="file" id="importFile" accept="application/json,.json" hidden />
+          </div>
+
+          <div class="tabs" id="storageTabs">
+            <button class="tab active" data-tab="All">All <span class="count" data-count="All">0</span></button>
+            <button class="tab" data-tab="Complete">Complete <span class="count" data-count="Complete">0</span></button>
+            <button class="tab" data-tab="Plan to Watch">Plan to Watch <span class="count" data-count="Plan to Watch">0</span></button>
+            <button class="tab" data-tab="Dislike">Dislike <span class="count" data-count="Dislike">0</span></button>
+            <button class="tab" data-tab="Favorite">Favorite <span class="count" data-count="Favorite">0</span></button>
+          </div>
+
+          <div class="edit-bar" id="editBar" hidden>
+            <span id="editCount">0 dipilih</span>
+            <div class="spacer"></div>
+            <button class="btn btn-sm" id="selectAllBtn">
+              <svg class="ico"><use href="#i-check"/></svg> Select All
+            </button>
+            <button class="btn btn-sm btn-danger holdable" id="bulkDeleteBtn" data-label="Hapus">
+              <span class="hold-fill"></span>
+              <svg class="ico"><use href="#i-trash"/></svg>
+              Hapus — Hold 1.5s
+            </button>
+            <button class="btn btn-sm btn-ghost" id="cancelEditBtn">Cancel</button>
+          </div>
+
+          <div class="card-grid" id="storageGrid"></div>
+          <div id="storagePager" class="pager-slot"></div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="profile-popup" id="profilePopup" hidden>
+  <button class="pp-close" id="ppClose" aria-label="Tutup profil">
+    <svg class="ico"><use href="#i-close"/></svg>
+  </button>
+  <div class="pp-header">
+    <div class="pp-avatar-wrap">
+      <div class="pp-avatar" id="ppAvatar"></div>
+      <button class="pp-change-avatar" id="ppChangeAvatar" title="Ganti avatar">
+        <svg class="ico"><use href="#i-camera"/></svg>
+      </button>
+      <input type="file" id="ppAvatarFile" accept="image/png,image/webp,image/gif" hidden />
+    </div>
+    <div class="pp-input-wrap">
+      <div class="pp-label">Display Name</div>
+      <input type="text" class="pp-input" id="ppNameInput" maxlength="30" placeholder="Nama pengguna" />
+    </div>
+  </div>
+  <div class="pp-level">
+    <div class="pp-level-title">
+      <span id="ppLevelTitle">Level 1 — Watcher Novice</span>
+      <span id="ppLevelBadge">Lv 1</span>
+    </div>
+    <div class="bar"><i id="ppXpBar" style="width:0%"></i></div>
+    <div class="pp-xp-text">
+      <span id="ppXpTextLeft">0 XP</span>
+      <span id="ppXpTextRight">0 / 10</span>
+    </div>
+  </div>
+  <div class="pp-stats">
+    <div class="pp-stat"><b id="ppTotalEps">0</b><span>Episode</span></div>
+    <div class="pp-stat"><b id="ppTotalTitles">0</b><span>Tersimpan</span></div>
+    <div class="pp-stat"><b id="ppCompleted">0</b><span>Tamat</span></div>
+  </div>
+  <div class="pp-footer">    <button class="theme-morph-btn" type="button" data-theme-toggle title="Ganti tema" aria-label="Ganti tema terang/gelap">
+          <span class="tmb-icon tmb-moon"><svg class="ico"><use href="#i-moon"/></svg></span>
+          <span class="tmb-icon tmb-sun"><svg class="ico"><use href="#i-sun"/></svg></span>
+        </button>
+    <button class="btn pp-delete holdable" id="ppDeleteBtn">
+      <span class="hold-fill"></span>
+      <svg class="ico"><use href="#i-trash"/></svg>
+      Delete Data
+    </button>
+  </div>
+</div>
+
+<div class="overlay" id="watchOverlay" hidden>
+  <div class="watch-modal" id="watchModal" role="dialog" aria-modal="true" aria-label="Anime Detail">
+    <div class="modal-bar">
+      <button class="icon-btn" id="watchClose" style="width:34px;height:34px" aria-label="Tutup">
+        <svg class="ico"><use href="#i-close"/></svg>
+      </button>
+      <span class="title">iLoveNime · Player</span>
+      <div class="spacer"></div>
+      <span class="kbd">Esc</span>
+    </div>
+    <div class="watch-grid">
+      <div class="watch-left" id="watchLeft">
+        <div class="player-stage" id="playerStage">
+          <div class="player" id="playerBox"></div>
+          <div class="vo-hotspot" aria-hidden="true"></div>
+          <div class="video-overlay" id="videoOverlay" hidden>
+            <div class="vo-bar">
+              <div class="custom-mirror-select vo-mirror" id="mirrorSelectWrapper">
+                <button class="mirror-trigger" id="mirrorTrigger" aria-haspopup="true" aria-expanded="false">
+                  <svg class="ico"><use href="#i-database"/></svg>
+                  <span id="mirrorLabel">Memuat mirror…</span>
+                  <svg class="ico gf-chev"><use href="#i-chev-down"/></svg>
+                </button>
+                <div class="mirror-options" id="mirrorOptions" hidden></div>
+              </div>
+              <div class="vo-actions">
+                <button class="vo-btn" id="pipBtn" title="Popup player (tetap jalan)" aria-label="Popup player">
+                  <svg class="ico"><use href="#i-pip"/></svg>
+                </button>
+                <button class="vo-btn" id="prevEpBtn" title="Episode sebelumnya" aria-label="Episode sebelumnya">
+                  <svg class="ico"><use href="#i-prev"/></svg>
+                </button>
+                <button class="vo-btn" id="nextEpBtn" title="Episode berikutnya" aria-label="Episode berikutnya">
+                  <svg class="ico"><use href="#i-next"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="watch-title" id="watchTitle">—</div>
+        <div class="watch-sub" id="watchSub">—</div>
+        <div class="watch-actions" id="watchActions"></div>
+        <div class="detail-block">
+          <h4>Detail Anime</h4>
+          <div class="detail-grid" id="watchDetailGrid"></div>
+          <div class="synopsis" id="watchSynopsis"></div>
+          <div class="genre-chips" id="watchGenres"></div>
+        </div>
+      </div>
+      <aside class="watch-right">
+        <div class="mirror-note-box">
+          <div class="note" id="mirrorNote">
+            Klik di dalam area video untuk memunculkan kontrol: pilih mirror,
+            episode sebelumnya/berikutnya, atau popup player. Kontrol di dalam
+            iframe bergantung pada sumber player.
+          </div>
+        </div>
+        <div class="panel-title">Episode List</div>
+        <div class="ep-list" id="episodeList"></div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- Filter gooey sudah tidak dipakai: efek gumpalan dihapus dari kartu
+     karena blur + contrast alpha butuh ruang gerak yang tidak tersedia di
+     tombol 52x34px. Definisi filter dihapus agar tidak jadi dead markup. -->
+<svg class="goo-defs" aria-hidden="true" focusable="false"><defs></defs></svg>
+
+<!-- Menu morph per-kartu: satu panel tunggal yang dipindah ke posisi tombol
+     mana pun yang diklik. 18 item lebih baik daripada 18 panel. -->
+<div class="goo-menu" id="gooMenu" role="menu" hidden>
+  <div class="goo-scope" role="presentation"></div>
+  <button type="button" role="menuitem" data-goo="favorite">
+    <svg class="ico"><use href="#i-star"/></svg> Favorite
+  </button>
+  <button type="button" role="menuitem" data-goo="dislike">
+    <svg class="ico"><use href="#i-thumb-down"/></svg> Dislike
+  </button>
+  <button type="button" role="menuitem" data-goo="reset">
+    <svg class="ico"><use href="#i-refresh"/></svg> Reset
+  </button>
+  <button type="button" role="menuitem" data-goo="remove" class="is-danger">
+    <svg class="ico"><use href="#i-trash"/></svg> Hapus
+  </button>
+</div>
+
+<div id="confirmRoot"></div>
+<div class="toast-stack" id="toastStack"></div>
+<canvas id="ambientCanvas" aria-hidden="true" style="position:fixed;inset:0;z-index:-2;width:100%;height:100%;pointer-events:none;opacity:.5"></canvas>
+
+<script type="module" src="/js/reference-app.js?v=2.18.0"></script>
+<script type="module" src="/js/ambient.js?v=2.0.6"></script>
+</body>
+</html>

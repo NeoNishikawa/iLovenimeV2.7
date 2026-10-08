@@ -1,0 +1,82 @@
+{
+  "name": "ilovenime-personal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal local ILoveNime anime tracker with an Animasu proxy.",
+  "homepage": "https://github.com/ilovenime/ilovenime-personal",
+  "author": {
+    "name": "ILoveNime",
+    "email": "maintainer@ilovenime.local"
+  },
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "desktop:start": "electron .",
+    "desktop:dist": "electron-builder",
+    "desktop:win": "electron-builder --win nsis portable --publish never",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js",
+    "test:integration": "node scripts/zip-route-integration.js",
+    "test:keys": "node scripts/search-key-audit.js",
+    "fuzz:api": "node scripts/fuzz-api-stress.js",
+    "test:load": "node scripts/load-bench.js",
+    "seal": "node scripts/seal.js",
+    "seal:check": "node scripts/seal.js --check",
+    "test:all": "npm test && npm run seal:check && npm run test:keys && npm run test:integration"
+  },
+  "devDependencies": {
+    "electron": "^36.3.2",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "animejs": "^4.5.0",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.22.3",
+    "three": "^0.185.1",
+    "yaoi": "^1.0.7"
+  },
+  "build": {
+    "appId": "com.ilovenime.personal",
+    "productName": "ILoveNime",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "files": [
+      "desktop/**/*",
+      "public/**/*",
+      "server.js",
+      "settings.js",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "artifactName": "ILoveNime-${version}-Setup-${arch}.${ext}",
+      "displayLanguageSelector": false
+    },
+    "portable": {
+      "artifactName": "ILoveNime-${version}-Portable-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    }
+  }
+}

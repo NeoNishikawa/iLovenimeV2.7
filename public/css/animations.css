@@ -1,0 +1,85 @@
+/* ==========================================================================
+   ILoveNime — Animations
+   Semua animasi via transform/opacity. prefers-reduced-motion mematikan
+   semuanya di akhir file.
+   ========================================================================== */
+
+/* Keyframes inti */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes modalOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(10px) scale(.98)}}
+@keyframes overlayOut{to{opacity:0}}
+@keyframes popupIn{from{opacity:0;transform:translateX(-8px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes gfPop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes perfSelect{0%{transform:translateY(0) scale(1)}45%{transform:translateY(1.5px) scale(.97)}100%{transform:translateY(0) scale(1)}}
+@keyframes toastIn{from{opacity:0;transform:translateX(18px) translateY(6px)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateX(18px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes skeletonShimmer{to{background-position:-220% 0}}
+@keyframes flameBreath{0%,100%{opacity:.45;transform:scale(1)}50%{opacity:.85;transform:scale(1.06)}}
+
+/* Reveal & stagger kartu */
+@keyframes cardEnter{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+.card-enter{animation:cardEnter .4s var(--ease-out) both;animation-delay:var(--enter-delay,0ms)}
+@keyframes sectionIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes sectionOut{to{opacity:0;transform:translateY(8px)}}
+.section-in{animation:sectionIn .4s var(--ease-out) both}
+.section-out{animation:sectionOut .28s ease-in forwards}
+
+/* Scroll fade: kartu memudar saat keluar viewport, muncul lagi saat masuk
+   (di-toggle IntersectionObserver di reference-app.js). Hanya opacity &
+   transform — tanpa biaya layout. */
+.scroll-reveal{transition:opacity .45s var(--ease-out), transform .45s var(--ease-out)}
+.scroll-reveal.scroll-hidden{opacity:0;transform:translateY(14px) scale(.99);pointer-events:none}
+
+/* Slide halaman grid (pager 6×3 / 3×3) */
+@keyframes pageIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+.page-in{animation:pageIn .32s var(--ease-out)}
+
+/* Search section buka/tutup */
+.section-collapse{
+  display:grid;grid-template-rows:0fr;opacity:0;
+  transition:grid-template-rows .45s var(--ease-out), opacity .35s var(--ease-out);
+  min-height:0;
+}
+.section-collapse > *{overflow:hidden;min-height:0}
+.section-collapse.is-open{grid-template-rows:1fr;opacity:1}
+
+/* Bottom sheet dropdown di layar sentuh */
+@keyframes sheetIn{from{transform:translateY(100%)}to{transform:none}}
+@keyframes sheetOut{to{transform:translateY(100%)}}
+
+/* Episode & mirror transitions (dipakai reference-app.js) */
+@keyframes epSlideOutLeft{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-56px)}}
+@keyframes epSlideOutRight{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(56px)}}
+@keyframes epSlideInRight{from{opacity:0;transform:translateX(56px)}to{opacity:1;transform:translateX(0)}}
+@keyframes epSlideInLeft{from{opacity:0;transform:translateX(-56px)}to{opacity:1;transform:translateX(0)}}
+@keyframes mirrorInRight{from{opacity:0;transform:translateX(16px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes mirrorInLeft{from{opacity:0;transform:translateX(-16px) scale(.985)}to{opacity:1;transform:none}}
+/* Crossfade mirror: keluar cepat via opacity, iframe baru fade-in */
+@keyframes mirrorOutFade{from{opacity:1}to{opacity:0}}
+.player.mirror-fading iframe{animation:mirrorOutFade .16s ease-in forwards;pointer-events:none}
+.player.mirror-fading{pointer-events:none}
+
+/* Ganti tema tanpa jank: selama 220ms semua transition dimatikan agar
+   ratusan elemen tidak men-transition warna bersamaan (30fps→1fps) */
+html.theme-switching *, html.theme-switching *::before, html.theme-switching *::after{
+  transition:none !important;
+}
+
+/* Reduced motion: semua animasi & transisi dimatikan, state akhir langsung tampil */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+    scroll-behavior:auto !important;
+  }
+  .reveal{opacity:1;transform:none}
+  .section-collapse{grid-template-rows:1fr;opacity:1}
+  .sidebar{transform:none}
+  .main-scroll{scroll-behavior:auto}
+  .scroll-reveal{opacity:1 !important;transform:none !important}
+  .brand-logo-wrap::before{animation:none}
+}

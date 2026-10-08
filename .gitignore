@@ -1,0 +1,65 @@
+# ── Dependency ─────────────────────────────────────────────────────────────
+# 423 MB. Tidak pernah boleh masuk repository: install ulang cukup `npm install`.
+node_modules/
+.npm/
+package-lock.json.backup
+
+# ── Rahasia & konfigurasi lokal ────────────────────────────────────────────
+# .env tidak ada di repo ini sekarang, tapi settings.js membaca process.env.
+# Kalau suatu saat dibuat, jangan pernah ikut ter-commit.
+.env
+.env.*
+!.env.example
+
+# ── Data pengguna ──────────────────────────────────────────────────────────
+# Route feedback dan data runtime lain akan tercipta di sini. Milik pengguna,
+# bukan milik repository.
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Build & rilis ───────────────────────────────────────────────────────────
+dist/
+release/
+build/
+*.zip
+*.exe
+*.msi
+*.blockmap
+
+# ── Dokumentasi ─────────────────────────────────────────────────────────────
+# Hanya README.MD yang ikut ke GitHub; dokumen lain tetap lokal.
+MD/
+!README.MD
+
+# ── Perkakas lokal ──────────────────────────────────────────────────────────
+# Catatan kerja, definisi persona, dan state Freebuff. Semuanya milik mesin
+# ini, bukan proyek -- memuat konteks pribadi yang tidak cocok untuk repo
+# publik. Kalau suatu saat mau dibagikan, hapus tiga baris ini.
+.ciel/
+.agents/
+.freebuff/
+
+# ── Log & cache ─────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+.npm-debug.log*
+.cache/
+.vite/
+
+# ── Editor & OS ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Variabel runtime yang sering tercipta sendiri ───────────────────────────
+tmp/
+temp/
+.coverage
+coverage/

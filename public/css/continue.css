@@ -1,0 +1,136 @@
+/* ==========================================================================
+   Lanjutkan Menonton — rail horizontal + kartu kecil + stage ala Netflix.
+   Semua animasi card tetap compositor-only (transform/opacity), mengikuti
+   aturan performance yang sudah dipakai halaman maintenance.
+   ========================================================================== */
+
+/* ---------- Rail ---------- */
+.cw-rail-wrap{position:relative}
+.cw-rail{
+  display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;padding:6px 2px 14px;
+  scroll-snap-type:x proximity;scroll-behavior:smooth;
+  scrollbar-width:thin;scrollbar-color:rgba(255,215,0,.28) transparent;
+}
+.cw-rail::-webkit-scrollbar{height:6px}
+.cw-rail::-webkit-scrollbar-thumb{background:rgba(255,215,0,.28);border-radius:99px}
+.cw-rail::-webkit-scrollbar-track{background:transparent}
+.cw-rail>*{flex:0 0 auto;scroll-snap-align:start}
+
+.cw-nav{
+  position:absolute;top:calc(50% - 46px);transform:translateY(-50%);z-index:4;
+  width:34px;height:34px;display:grid;place-items:center;border-radius:50%;
+  background:rgba(10,10,12,.82);border:1px solid var(--border);color:var(--text);
+  opacity:0;transition:opacity .2s ease,transform .2s ease,border-color .2s ease;
+  pointer-events:none;backdrop-filter:blur(4px);
+}
+.cw-nav .ico{width:16px;height:16px}
+.cw-rail-wrap:hover .cw-nav{opacity:1;pointer-events:auto}
+.cw-nav:hover{border-color:var(--gold-2);color:var(--gold);transform:translateY(-50%) scale(1.08)}
+.cw-nav-prev{left:-12px}
+.cw-nav-next{right:-12px}
+.cw-nav[disabled]{opacity:0!important;pointer-events:none}
+
+/* ---------- Kartu kecil (16:9) ---------- */
+.cw-card{
+  position:relative;width:clamp(240px,26vw,330px);aspect-ratio:16/9;
+  border-radius:14px;overflow:hidden;background:var(--surface);
+  border:1px solid var(--border);cursor:pointer;
+  transition:transform .28s var(--ease-out),border-color .28s ease,box-shadow .28s ease;
+  contain:layout paint;
+}
+.cw-card:hover,.cw-card:focus-visible{
+  transform:translateY(-3px) scale(1.035);
+  border-color:rgba(255,215,0,.42);
+  box-shadow:0 14px 40px rgba(0,0,0,.42);
+  z-index:3;
+}
+.cw-card:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px}
+.cw-card.is-loading{border-style:dashed;opacity:.6;cursor:default}
+
+.cw-art{position:absolute;inset:0}
+.cw-art img{width:100%;height:100%;object-fit:cover;display:block}
+.cw-art::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(0,0,0,.18) 0%,rgba(0,0,0,.34) 48%,rgba(0,0,0,.9) 100%);
+}
+.cw-art-fallback{position:absolute;inset:0;display:grid;place-items:center;color:var(--text-2);font-size:12px}
+
+/* Iframe pratinjau: tetap di dalam kartu, tidak keluar ke document flow. */
+.cw-preview{
+  position:absolute;inset:0;width:100%;height:100%;border:0;
+  opacity:0;transform:scale(1.06);pointer-events:none;
+  transition:opacity .45s ease,transform .7s var(--ease-out);
+}
+.cw-card.is-previewing .cw-preview{opacity:1;transform:scale(1)}
+.cw-card.is-previewing .cw-art{opacity:0}
+
+.cw-body{position:absolute;inset:auto 0 0 0;padding:10px 12px 11px;z-index:2}
+.cw-eyebrow{
+  display:inline-flex;align-items:center;gap:6px;margin-bottom:5px;
+  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--gold);background:rgba(255,215,0,.12);
+  border:1px solid rgba(255,215,0,.28);border-radius:99px;padding:2px 8px;
+}
+.cw-title{
+  font-size:13px;font-weight:700;color:#fff;line-height:1.35;margin:0 0 2px;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+}
+.cw-ep{font-size:11.5px;color:rgba(255,255,255,.78);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cw-bar{height:3px;border-radius:99px;background:rgba(255,255,255,.2);margin-top:8px;overflow:hidden}
+.cw-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold),var(--gold-2));width:0}
+
+/* Tombol aksi: muncul saat hover, di atas art, kanan bawah. */
+.cw-play{
+  position:absolute;top:10px;right:10px;z-index:3;display:flex;align-items:center;gap:6px;
+  padding:6px 11px;border-radius:99px;border:1px solid rgba(255,255,255,.24);
+  background:rgba(10,10,12,.74);color:#fff;font-size:11px;font-weight:600;
+  opacity:0;transform:translateY(-6px);transition:opacity .24s ease,transform .24s ease;
+  backdrop-filter:blur(6px);cursor:pointer;
+}
+.cw-play .ico{width:13px;height:13px}
+.cw-card:hover .cw-play,.cw-card:focus-within .cw-play{opacity:1;transform:none}
+.cw-play:hover{background:var(--gold);color:#17170c;border-color:transparent}
+.cw-play[disabled]{opacity:0;pointer-events:none}
+
+/* Skeleton shimmer untuk kartu yang detail-nya belum selesai dimuat. */
+.cw-skel{position:absolute;inset:0;background:linear-gradient(100deg,var(--surface) 30%,#26262b 50%,var(--surface) 70%);background-size:220% 100%;animation:cwShimmer 1.4s linear infinite}
+@keyframes cwShimmer{from{background-position:120% 0}to{background-position:-120% 0}}
+
+.cw-empty{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:30px 18px;border:1px dashed var(--border);border-radius:14px;
+  color:var(--text-2);text-align:center;width:100%;
+}
+.cw-empty strong{font-size:13.5px;color:var(--text)}
+.cw-empty span{font-size:12px;line-height:1.6;max-width:440px}
+
+/* ---------- Crossfade antar section ---------- */
+.canvas>section{transition:opacity .34s ease}
+.canvas>section.is-crossfading{opacity:0}
+.canvas>section.is-scroll-dim{opacity:.34}
+
+/* ---------- Light theme ---------- */
+[data-theme="light"] .cw-card{background:#fff;box-shadow:0 2px 10px rgba(15,23,42,.06)}
+[data-theme="light"] .cw-card:hover{box-shadow:0 16px 42px rgba(15,23,42,.16)}
+[data-theme="light"] .cw-art::after{background:linear-gradient(180deg,rgba(15,23,42,.06) 0%,rgba(15,23,42,.2) 46%,rgba(15,23,42,.82) 100%)}
+[data-theme="light"] .cw-nav{background:rgba(255,255,255,.92)}
+[data-theme="light"] .cw-skel{background:linear-gradient(100deg,#f1f3f5 30%,#e2e6ea 50%,#f1f3f5 70%);background-size:220% 100%}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1023px){
+  .cw-card{width:clamp(220px,44vw,300px)}
+}
+@media (max-width:767px){
+  .cw-rail{gap:11px;padding-bottom:12px}
+  .cw-card{width:74vw}
+  .cw-nav{display:none}
+}
+
+/* ---------- Motion policy ---------- */
+@media (prefers-reduced-motion:reduce){
+  .cw-card,.cw-preview,.cw-play,.cw-nav,.canvas>section{transition:none!important}
+  .cw-card:hover,.cw-card:focus-visible{transform:none}
+  .cw-skel{animation:none}
+  .cw-preview{transform:none}
+  .canvas>section.is-scroll-dim{opacity:1}
+}

@@ -1,0 +1,193 @@
+/* ==========================================================================
+   ILoveNime — Responsive
+   Breakpoint: ≥1280 desktop penuh · 1024–1279 laptop · 768–1023 tablet ·
+   <768 mobile (drawer + bottom sheet).
+   ========================================================================== */
+
+/* ---------- Laptop compact (1024–1279) ---------- */
+@media (max-width:1279px){
+  .canvas{padding:20px}
+  .card-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .watch-grid{grid-template-columns:1fr}
+  .watch-right{border-left:none;border-top:1px solid var(--border)}
+  .header{padding:14px 20px;flex-wrap:wrap}
+  .search-wrap{min-width:220px}
+}
+
+/* ---------- Pager grid (slide 6×3 / 3×3) ---------- */
+.pager-slot{grid-column:1/-1}
+.grid-pager{display:flex;align-items:center;justify-content:center;gap:14px;padding:18px 0 6px}
+.pager-btn{
+  min-width:40px;min-height:40px;border-radius:10px;display:grid;place-items:center;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  transition:border-color .2s ease-in-out, color .2s ease-in-out;
+}
+.pager-btn:hover:not(:disabled){border-color:var(--gold-2);color:var(--gold)}
+.pager-btn:disabled{opacity:.35;cursor:not-allowed}
+.pager-info{font-size:12.5px;color:var(--text-2)}
+.pager-info b{color:var(--text)}
+
+/* ---------- Tablet (768–1023) ---------- */
+@media (max-width:1023px){
+  .hamburger{display:inline-flex}
+  .header-right{margin-left:auto}
+
+  /* Sidebar jadi drawer off-canvas */
+  .sidebar{
+    position:fixed;inset:0 auto 0 0;z-index:120;
+    width:min(300px,84vw);flex-basis:auto;box-shadow:var(--shadow);
+    transform:translateX(-100%);
+    transition:transform .35s var(--ease-out);
+  }
+  .app.collapsed .sidebar{width:min(300px,84vw)}
+  .sidebar.is-mobile-open{transform:none}
+  .app.drawer-open .main{overflow:hidden}
+  .sb-toggle{display:none}
+
+  /* Drawer di sini SELALU tampil penuh berlabel —
+     mode collapsed (icon rail 70px) tidak berlaku di bawah 1024px */
+  .app.collapsed{--sidebar-w:min(300px,84vw)}
+  .app.collapsed .brand{max-width:220px}
+  .app.collapsed .sb-top{padding:18px 16px 14px;justify-content:flex-start}
+  .app.collapsed .sb-user{justify-content:flex-start;padding:10px;margin:0 12px 14px}
+  .app.collapsed .sb-user-info{opacity:1;max-width:160px}
+  .app.collapsed .sb-label,
+  .app.collapsed .nav-badge,
+  .app.collapsed .hold-label{opacity:1;pointer-events:auto;width:auto;overflow:visible}
+  .app.collapsed .nav-label{opacity:1;max-width:160px;pointer-events:auto}
+  .app.collapsed .nav-item{justify-content:flex-start;padding:10px 11px}
+  .app.collapsed .nav-item::after,
+  .app.collapsed .sb-bottom button::after{display:none}
+  .sb-user{cursor:default}
+
+  /* Header ringkas: brand + hamburger + theme; filter pindah ke bawah */
+  .header{gap:10px;padding:12px 16px}
+  .header .genre-filter,
+  .header .character-filter,
+  .header .compact-filters{
+    order:5;width:100%;
+  }
+  .header .compact-filters{display:flex;flex-wrap:wrap}
+  .search-wrap{flex:1 1 100%;order:0;max-width:none}
+
+  .card-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .profile-card{gap:16px}
+  .pc-stats{flex-wrap:wrap}
+}
+
+/* ---------- Mobile (<768) ---------- */
+@media (max-width:767px){
+  /* backdrop-filter menjadikan header containing-block bagi position:fixed;
+     dimatikan agar bottom sheet menghitung posisi dari viewport. */
+  .header{padding:10px 12px;gap:8px;backdrop-filter:none}
+  .header .genre-filter,
+  .header .character-filter,
+  .header .compact-filters{display:none}
+  .gf-trigger,.header .btn,.filter-search-btn{min-height:42px}
+  .search-wrap{height:42px}
+  .hamburger{width:40px;height:40px}
+
+  .canvas{padding:14px 12px calc(64px + env(safe-area-inset-bottom))}
+  .card-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .card-title{font-size:11.5px}
+  .card-body{padding:10px 10px 11px;gap:7px}
+  .card-actions .btn{padding:7px 4px;font-size:10.5px}
+  .sec-head{gap:10px}
+  .sec-title{font-size:16px}
+  .toolbar{padding:10px}
+  .tool-search{min-width:0;flex-basis:100%}
+  /* Profil mobile: tombol edit muncul, stat box dihapus (info ada di drawer) */
+  .pc-edit{display:inline-flex}
+  .pc-stats{display:none}
+
+  /* Editor profil jadi bottom sheet agar tidak keluar layar */
+  .profile-popup{
+    left:12px !important;right:12px;width:auto;
+    top:auto !important;bottom:calc(12px + env(safe-area-inset-bottom));
+    transform-origin:bottom center;
+    animation:sheetIn .32s var(--ease-out);
+  }
+  .profile-popup::before{display:none}
+
+  /* Toolbar storage mobile: hanya search, edit mode, import/export */
+  .toolbar .gf-storage,
+  .toolbar .cf-storage,
+  .toolbar .storage-filters{display:none}
+  .tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto}
+  .profile-card{padding:16px}
+  .stat-box{min-width:0;flex:1;padding:10px 12px}
+
+  /* Watch modal jadi fullscreen sheet */
+  .overlay{padding:0}
+  .watch-modal{width:100%;max-height:100vh;height:100dvh;border-radius:0;border:none}
+  .watch-grid{overflow-y:auto}
+  .watch-left{padding:12px}
+  .watch-right{padding:12px}
+  .toast-stack{right:12px;left:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:none}
+
+  /* Drawer: geser keluar saat tutup, animasi slide saat buka */
+  .sidebar{width:min(320px,88vw)}
+  .drawer-overlay{animation:fadeIn .2s ease-in-out}
+
+  /* Dropdown jadi bottom sheet — KECUALI mirror, yang tetap anchored
+     keluar dari tombolnya di dalam video overlay. */
+  .gf-panel,
+  .data-menu{
+    position:fixed !important;
+    left:0 !important;right:0 !important;top:auto !important;bottom:0 !important;
+    width:100% !important;min-width:0 !important;max-width:none !important;
+    max-height:72dvh;overflow-y:auto;
+    border-radius:18px 18px 0 0;border-left:none;border-right:none;border-bottom:none;
+    padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+    transform-origin:bottom center;
+    animation:sheetIn .32s var(--ease-out) !important;
+    z-index:400;
+  }
+  /* Mirror dropdown: tetap dropdown dari tombol, dibatasi viewport */
+  .mirror-options{
+    max-width:calc(100vw - 24px);
+  }
+  .vo-mirror .mirror-options{
+    position:fixed;left:12px;right:12px;top:auto;bottom:auto;
+    max-height:40dvh;
+  }
+  /* Genre chips mobile: 3 kolom agar lega */
+  .gf-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  /* Teks chips hitam pekat juga di tablet/mobile light mode */
+  [data-theme="light"] .tab{color:#0F172A}
+  .genre-filter.is-closing .gf-panel,
+  .styled-filter.is-closing .gf-panel,
+  .data-menu-wrap.is-closing .data-menu,
+  .custom-mirror-select.is-closing .mirror-options{
+    animation:sheetOut .24s ease-in forwards !important;
+  }
+  .gf-grid{max-height:none;justify-content:flex-start}
+  .gf-chip{min-height:42px;min-width:0;flex:1 1 30%}
+
+  /* Tombol aksi kartu jadi ikon di mobile juga */
+  .card-actions .btn .btn-label{display:none}
+  .card-actions .btn{flex:0 0 auto;width:38px;padding:8px 0;justify-content:center}
+  .card-actions .btn .btn-icon{width:16px;height:16px}
+
+  /* Video overlay: hotspot nonaktif di layar sentuh —
+     semua kontrol selalu tampil di mobile. */
+  .vo-hotspot{display:none}
+  .video-overlay{opacity:1;pointer-events:none}
+  .video-overlay .vo-bar,.video-overlay .vo-bar *{pointer-events:auto}
+  .vo-btn{width:42px;height:42px}
+  .vo-mirror{flex-basis:220px}
+
+  /* Profile sheet mobile: beri ruang untuk tombol close */
+  .profile-popup{padding-top:20px}
+  .data-menu button,
+  .mirror-options button{min-height:44px}
+}
+
+/* ---------- Layar sentuh: target sentuh ≥44px ---------- */
+@media (pointer:coarse){
+  .tab,.collection-filter{min-height:44px}
+  .ep-item{min-height:44px}
+  .sb-toggle{width:34px;height:34px}
+}

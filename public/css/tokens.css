@@ -1,0 +1,55 @@
+/* ==========================================================================
+   ILoveNime — Design Tokens
+   Warna & identitas TIDAK berubah. Yang ditambah: spacing scale,
+   motion tokens, dan focus ring agar seluruh UI konsisten.
+   ========================================================================== */
+:root{
+  --bg:#0D0D0D; --bg-2:#000000; --surface:#161618; --surface-2:#1c1c20; --surface-3:#26262b;
+  --border:#26262B; --gold:#FFD700; --gold-2:#F59E0B;
+  --primary:#991B1B; --primary-hover:#B91C1C; --danger:#8B0000;
+  /* Merah untuk TEKS di atas latar gelap. --danger tidak bisa dipakai di sini:
+     di atas latar merah translucent yang gelap, #8B0000 hanya 1,76:1. */
+  --danger-ink:#E05252;
+  --text:#FFFFFF; --text-2:#94A3B8;
+  --accent-soft:rgba(153,27,27,.16); --gold-soft:rgba(255,215,0,.10);
+  --shadow:0 18px 48px rgba(0,0,0,.55);
+  --glow:0 0 0 1px rgba(255,215,0,.18), 0 0 24px rgba(255,215,0,.10);
+  --radius:14px; --radius-sm:10px;
+  --sidebar-w:260px;
+  --placeholder-a:#1b1b1f; --placeholder-b:#101013;
+
+  /* Emas yang aman dipakai sebagai TEKS di atas latar terang.
+     Dark mode tetap #FFD700 karena latar di situ gelap. Di light mode
+     #FFD700 hanya 1,26:1 di atas #F1F3F5, jadi dipakai #A04506 yang
+     terukur 4,79:1 di sidebar dan 4,87:1 di tombol favorite memakai
+     latar asli hasil render. Token ini hanya untuk teks, bukan untuk
+     garis/ikon dekoratif. */
+  --gold-ink:#FFD700;
+  /* Emas yang selalu dipakai di atas latar GELAP (badge hitam transparan),
+     jadi nilainya sama di kedua tema. */
+  --gold-on-dark:#FFD700;
+
+  /* Spacing scale (4px base) */
+  --space-1:4px;  --space-2:8px;  --space-3:12px; --space-4:16px;
+  --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px;
+
+  /* Motion tokens — animasi hanya via transform/opacity */
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --ease-spring:cubic-bezier(.34,1.4,.64,1);
+  --dur-fast:.18s; --dur-base:.28s; --dur-slow:.42s;
+}
+
+[data-theme="light"]{
+  --bg:#F1F3F5; --bg-2:#E9ECEF; --surface:#FFFFFF; --surface-2:#F8F9FA; --surface-3:#EDEFF2;
+  --border:#D1D5DB; --gold:#D97706; --gold-2:#F59E0B;
+  --primary:#0891B2; --primary-hover:#0E7490; --danger:#DC2626;
+  /* Sama seperti --danger-ink dark: di light mode background-nya terang,
+     jadi teks merah harus gelap. #DC2626 cuma 3,49:1, #B91C1C 4,68:1. */
+  --danger-ink:#B91C1C;
+  --text:#0F172A; --text-2:#64748B;
+  --accent-soft:rgba(8,145,178,.10); --gold-soft:rgba(217,119,6,.10);
+  --shadow:0 18px 48px rgba(15,23,42,.14);
+  --glow:0 0 0 1px rgba(8,145,178,.18), 0 0 24px rgba(8,145,178,.08);
+  --placeholder-a:#e4e8ec; --placeholder-b:#f4f6f8;
+  --gold-ink:#9A3F05;
+}

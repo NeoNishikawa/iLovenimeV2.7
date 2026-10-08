@@ -1,0 +1,116 @@
+/* ============================================================================
+   ILoveNime — Seal (kunci integritas) + Mode terkunci
+   ----------------------------------------------------------------------------
+   `[data-iln-seal-locked="1"]` aktif ketika hash kunci tidak cocok. Efeknya:
+   kerangka desain (sidebar, header, filter, warna, tipografi) tetap tampil,
+   tetapi tidak ada satu pun data anime, hasil pencarian, episode, atau player.
+   ========================================================================== */
+
+/* Pecahan kunci per file CSS. Nilai diambil dari getComputedStyle saat boot. */
+:root{
+  --iln-seal-tokens:"copyright LoveNime";
+  --iln-seal-base:"copyright LoveNime";
+  --iln-seal-layout:"copyright LoveNime";
+  --iln-seal-components:"copyright LoveNime";
+  --iln-seal-morph:"copyright LoveNime";
+  --iln-seal-motion:"copyright LoveNime";
+  --iln-seal-continue:"copyright LoveNime";
+  --iln-seal-animations:"copyright LoveNime";
+  --iln-seal-responsive:"copyright LoveNime";
+}
+
+/* ----------------------------- Mode terkunci ----------------------------- */
+[data-iln-seal-locked="1"] #searchGrid,
+[data-iln-seal-locked="1"] #updateGrid,
+[data-iln-seal-locked="1"] #storageGrid,
+[data-iln-seal-locked="1"] #continueRail,
+[data-iln-seal-locked="1"] #episodeList,
+[data-iln-seal-locked="1"] #watchDetailGrid,
+[data-iln-seal-locked="1"] #searchPager,
+[data-iln-seal-locked="1"] #storagePager,
+[data-iln-seal-locked="1"] #profileSection,
+[data-iln-seal-locked="1"] #playerStage,
+[data-iln-seal-locked="1"] #searchSection,
+[data-iln-seal-locked="1"] #continueSection,
+[data-iln-seal-locked="1"] #updateSection,
+[data-iln-seal-locked="1"] #storageSection{
+  display:none !important;
+}
+
+/* Judul section, filter, dan navigasi tetap terlihat supaya kerangka desain
+   utuh — hanya isinya yang dikosongkan. */
+[data-iln-seal-locked="1"] .main-scroll{
+  min-height:60vh;
+  background-image:
+    linear-gradient(var(--border) 1px,transparent 1px),
+    linear-gradient(90deg,var(--border) 1px,transparent 1px);
+  background-size:56px 56px;
+  background-position:center center;
+  opacity:.9;
+}
+
+[data-iln-seal-locked="1"] .main-scroll::after{
+  content:"iLoveNime";
+  position:absolute;inset:0;
+  display:grid;place-items:center;
+  font-size:13px;font-weight:800;letter-spacing:.34em;
+  color:var(--text-2);opacity:.5;pointer-events:none;
+}
+
+[data-iln-seal-locked="1"] .sidebar,
+[data-iln-seal-locked="1"] .header{
+  filter:none;
+}
+
+/* Ikon dan tombol navigasi tetap hidup sebagai bagian dari design. */
+[data-iln-seal-locked="1"] .nav-badge,
+[data-iln-seal-locked="1"] .sb-level{
+  visibility:hidden;
+}
+/* ============================================================================
+   Pemberitahuan pemeliharaan 14 hari
+   ========================================================================== */
+.maintenance-modal{width:min(520px,100%)}
+.maintenance-badge{
+  width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+  margin-bottom:14px;background:var(--primary);color:#fff;
+}
+[data-theme="light"] .maintenance-badge{box-shadow:0 6px 18px rgba(8,145,178,.28)}
+.maintenance-badge .ico{width:24px;height:24px;stroke-width:2.2}
+.maintenance-modal .mn-lead{color:var(--text);font-size:14px}
+.maintenance-modal .mn-lead b{color:var(--primary)}
+.maintenance-modal .mn-apology{
+  padding:11px 13px;border-radius:11px;
+  background:var(--surface-2);border:1px solid var(--border);
+}
+.maintenance-modal .mn-apology b{color:var(--text)}
+.maintenance-modal .mn-next{
+  margin-top:4px;padding:9px 13px;border-radius:11px;
+  background:var(--gold-soft);color:var(--text-2);
+  font-size:12px;letter-spacing:.01em;
+}
+.maintenance-modal .mn-next b{color:var(--gold-ink)}
+.maintenance-modal.is-closing{animation:overlayOut .2s ease-in forwards}
+
+/* ---------- Banner pemberitahuan pemeliharaan (non-blocking) ----------
+   Pengganti modal layar penuh yang dulu mengunci halaman (temuan CRITICAL
+   audit UX 5 Okt 2026). Pita ramping di atas viewport: pengunjung tetap
+   bisa menjelajah dan menonton. Halaman didorong turun lewat class
+   "notice-open" di body, bukan overlay. z-index 340: di atas dropdown,
+   di bawah toast (600) dan overlay watch (700). */
+.notice-banner{
+  position:fixed;top:0;left:0;right:0;z-index:340;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  min-height:64px;padding:10px 20px;
+  background:#1f2933;color:#fff;border-bottom:1px solid rgba(255,215,0,.3);
+  box-shadow:0 6px 18px rgba(0,0,0,.35);
+}
+body.notice-open{padding-top:var(--notice-h,64px)}
+.notice-banner .maintenance-badge{width:30px;height:30px;flex:0 0 30px;border-radius:9px;display:grid;place-items:center;background:rgba(255,215,0,.14);color:var(--gold)}
+.notice-banner .maintenance-badge .ico{width:16px;height:16px;fill:currentColor;stroke:none}
+.notice-banner .nb-title{margin:0;font-size:12.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
+.notice-banner .nb-text{margin:0;font-size:12px;line-height:1.5;color:rgba(255,255,255,.86);flex:1 1 320px}
+.notice-banner .nb-next{font-size:11px;color:rgba(255,255,255,.66);white-space:nowrap}
+.notice-banner .nb-close{flex:0 0 auto}
+.notice-banner.is-closing{opacity:0;transform:translateY(-12px);transition:opacity .22s ease,transform .22s ease}
+@media (max-width:640px){.notice-banner .nb-next{display:none}}
