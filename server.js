@@ -888,7 +888,32 @@ app.use(express.json({ limit: "100kb" }));
    static otomatis menyajikan public/index.html untuk permintaan direktori
    dan akan membayangi catch-all maintenance di bawah. */
 const MAINTENANCE_PAGE = path.join(__dirname, "public", "maintenance-page", "index.html");
-if (MAINTENANCE) app.get("/", (_, response) => response.sendFile(MAINTENANCE_PAGE));
+
+/* Shell iLoveNime yang sudah terpasang memuat "?shell=apk". Pemeliharaan
+   resmi tidak boleh snare aplikasi yang sudah terpasang: pengguna tidak
+   punya tab browser yang bisa ditutup, dan halaman maintenance tidak punya
+   jalan keluar ke aplikasi. Pengunjung web tetap melihat halaman
+   maintenance seperti biasa - hanya shell terpasang yang dilewati.
+
+   Penandanya eksplisit, bukan dikira dari User-Agent: server tidak boleh
+   menebak siapa yang sedang bertanya. Tanpa parameter ini, perilakunya
+   persis seperti sebelumnya.
+
+   Pengecekan WAJIB di dalam handler, bukan di `if (MAINTENANCE)`: fungsi
+   harus dijalankan per permintaan. `if (MAINTENANCE && !dariShell)` akan
+   selalu salah karena fungsi selalu dianggap benar - maintenance mati
+   total untuk semua orang, termasuk pengunjung web. */
+function dariShellTerpasang(request) {
+  return String((request.query && request.query.shell) || "") === "apk";
+}
+function sajikanSesuaiMode(request, response) {
+  if (MAINTENANCE && !dariShellTerpasang(request)) {
+    return response.sendFile(MAINTENANCE_PAGE);
+  }
+  return response.sendFile(path.join(__dirname, "public", "index.html"));
+}
+
+if (MAINTENANCE) app.get("/", sajikanSesuaiMode);
 app.use("/vendor/animejs", express.static(path.join(__dirname, "node_modules", "animejs", "dist", "bundles")));
 app.use("/vendor/three", express.static(path.join(__dirname, "node_modules", "three", "build")));
 app.use(express.static(path.join(__dirname, "public")));
@@ -1063,11 +1088,9 @@ app.get("/maintenance", (_, response) => response.sendFile(MAINTENANCE_PAGE));
 app.all("/api/*", (request, response) => {
   response.status(404).json({ error: `Endpoint tidak ditemukan: ${request.method} ${request.path}` });
 });
-if (MAINTENANCE) {
-  app.get("*", (_, response) => response.sendFile(MAINTENANCE_PAGE));
-} else {
-  app.get("*", (_, response) => response.sendFile(path.join(__dirname, "public", "index.html")));
-}
+/* Shell terpasang (lihat dariShellTerpasang di atas) melewati mode
+   maintenance dan menerima halaman aplikasi seperti biasa. */
+app.get("*", sajikanSesuaiMode);
 /* Global error handler — WAJIB terdaftar paling akhir setelah semua rute.
    Tanpa ini, URI cacat (mis. /%ff) atau JSON body korup melempar URIError/
    SyntaxError ke handler default Express: HTML stack trace + log terminal

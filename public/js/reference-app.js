@@ -964,15 +964,30 @@ const FILTER_OPTIONS = { mainType: [["","Tipe"],["Serial TV","Serial TV"],["Live
    atau Enter. Scope storage tetap memfilter daftar lokal secara langsung. */
 /* ---------- Menu Download ---------- */
 /* URL unduhan diisi terpisah, sengaja TIDAK ditebak di sini: installer .exe
-   91,5 MB dan .apk 1,5 MB tidak disimpan di repo ini. Selama kosong, tombolnya
-   tampil tapi nonaktif dan alasannya ditulis, bukan link asal yang rusak. */
-const DOWNLOAD_LINKS = { exe: "", apk: "" };
+   sekitar 96 MB dan .apk 1,5 MB tidak disimpan di repo ini.
+
+   .exe sudah diisi (rilis 10 Oktober 2026). .apk sengaja masih kosong -
+   belum ada ril-nya, dan link yang klik-nya mati lebih buruk daripada
+   tombol yang disabled dengan alasannya ditulis.
+
+   PENTING: URL .exe ini juga dipakai oleh auto-update EXE sebagai sumber
+   metadata (latest.yml). Jadi kalau tautan ini diganti ke tempat lain,
+   build berikutnya harus ikut mengarahkan publish-nya, atau pemeriksaan
+   update akan mengarahkan pengguna ke rilis yang salah. */
+const DOWNLOAD_LINKS = {
+  exe: "https://github.com/NeoNishikawa/ilovenime-model/releases/download/exe/iLoveNime-X1.6.0-Setup-x64.exe",
+  apk: "",
+};
 
 /* EXE punya aplikasinya sendiri; APK memblokir navigasi ke luar lewat NavGuard
    dan mematikan multi-window. Di keduanya tombol unduh tidak berguna, jadi
    dibuang dari DOM (bukan disembunyikan) supaya tidak pernah bisa diklik. */
 function diDesktop() { return Boolean(window.ilnDesktop && window.ilnDesktop.isElectron) || /Electron/i.test(navigator.userAgent || ""); }
 function diWebViewAndroid() { const ua = navigator.userAgent || ""; return /;\s*wv\)/.test(ua) || (/Android/.test(ua) && /Version\/[\d.]+\s*Chrome/.test(ua)); }
+/* Shell iLoveNime yang sudah terpasang memuat "?shell=apk". Penanda ini
+   dibaca server juga, supaya halaman maintenance tidak.snare shell yang
+   tidak punya browser untuk ditutup. */
+function shellTerpasang() { try { return new URLSearchParams(window.location.search).get("shell") === "apk"; } catch (_) { return false; } }
 
 function pasangMenuDownload() {
   const wrap = $("#dlWrap");
@@ -1003,8 +1018,58 @@ function pasangMenuDownload() {
   items.forEach((item) => {
     const url = DOWNLOAD_LINKS[item.dataset.dl];
     if (!url) { item.disabled = true; return; }
-    item.onclick = () => { setDrawer(false); window.open(url, "_blank", "noopener"); };
+    item.onclick = () => {
+      setDrawer(false);
+      /* Installer belum ditandatangani CA, jadi Windows pasti menampilkan
+         "Windows protected your PC". Menosokan pengguna ke file 96 MB tanpa
+         penjelasan membuat mereka mengira aplikasinya rusak - dan browser
+         yang menampilkan SmartScreen bukan situs kita, jadipenjelasannya
+         harus muncul SEBELUM unduhan mulai.
+
+         .apk sengaja tidak lewat sini: Android tidak punya SmartScreen,
+         dan OS Android punya flow permission sendiri yang tidak bisa
+         dicampur instructions Windows. */
+      if (item.dataset.dl === "exe") { showSmartScreenNotice(url); return; }
+      window.open(url, "_blank", "noopener");
+    };
   });
+}
+
+/* Konfirmasi sebelum unduh .exe. Ada dua tombol: "Batal" membatalkan,
+   "Saya mengerti" baru membuka link GitHub. Menaruh link langsung di menu
+   berarti link tanpa penjelasan; menaruhnya setelah konfirmasi
+   berarti penundaan yang perlu dibaca dulu. */
+function showSmartScreenNotice(url) {
+  const root = $("#confirmRoot");
+  if (!root || !url) return;
+  /* Jangan menumpuk kalau klik berulang cepat. */
+  root.querySelectorAll(".overlay").forEach((lama) => lama.remove());
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.innerHTML = `<div class="confirm-modal ss-modal" role="dialog" aria-modal="true" aria-labelledby="ssTtl">
+    <div class="confirm-alert warn"><svg class="ico"><use href="#i-info"/></svg></div>
+    <h3 id="ssTtl">Sebelum mengunduh</h3>
+    <p class="ss-lead">Saat installer dibuka, Windows mungkin menampilkan peringatan <strong>"Windows protected your PC"</strong> atau <strong>"Unknown Publisher"</strong>. Itu <strong>wajar</strong> untuk perangkat lunak independen yang baru - bukan tanda file rusak.</p>
+    <p class="ss-why">iLoveNime dibuat independen, jadi installer-nya belum punya sertifikat digital resmi. Windows tidak mengenali penerbitnya, makanya peringatan muncul.</p>
+    <p class="ss-steps-t">Cara membukanya:</p>
+    <ol class="ss-steps">
+      <li>Klik <strong>"More info"</strong> di kiri bawah jendela.</li>
+      <li>Klik <strong>"Run anyway"</strong>.</li>
+    </ol>
+    <div class="confirm-actions">
+      <button class="btn btn-primary" data-ss-go>Lanjut unduh</button>
+      <button class="btn btn-ghost" data-ss-cancel>Batal</button>
+    </div></div>`;
+  root.appendChild(overlay);
+  const close = () => { overlay.classList.add("is-closing"); $(".confirm-modal", overlay).classList.add("is-closing"); setTimeout(() => overlay.remove(), 220); };
+  $("[data-ss-cancel]", overlay).onclick = close;
+  $("[data-ss-go]", overlay).onclick = () => { close(); setTimeout(() => window.open(url, "_blank", "noopener"), 230); };
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  /* Fokus ke tombol utama: keyboard bisa menyelesaikan tanpa mouse, dan
+     Escape membatalkan - dialog yang bisa dijebak mouse saja menyisakan
+     pengguna yang masih terjebak. */
+  $("[data-ss-go]", overlay).focus();
+  overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 }
 
 function bindDropdown(root) {
@@ -1439,8 +1504,14 @@ async function loadLive() {
 setup(); setupScrollReveal(); renderAll();
 /* Pemberitahuan pemeliharaan: muncul di kunjungan pertama, lalu sekali
    setiap 14 hari. Tidak bergantung pada server, jadi tetap tampil walau
-   katalog sedang lambat. */
-mountMaintenanceNotice();
+   katalog sedang lambat.
+
+   Tidak ditampilkan di shell APK. Dua alasan: shell terpasang memuat
+   "?shell=apk" (penanda yang sama dipakai server untuk melewati halaman
+   maintenance), dan WebView Android dikenali dari User-Agent-nya. Keduanya
+   dicek supaya notifikasi tetap hilang walau suatu saat penanda URL tidak
+   ikut terkirim. Browser biasa dan EXE tetap melihat notifikasi. */
+if (!diWebViewAndroid() && !shellTerpasang()) mountMaintenanceNotice();
 orb = mountSearchOrb($(".search-wrap"));
 
 /* ---------- Gooey morph: tombol "+" di SETIAP kartu anime ----------

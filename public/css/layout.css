@@ -120,6 +120,23 @@
 .dl-t small{font-size:10.5px;color:var(--text-2)}
 .dl-note{margin:4px 4px 2px;font-size:10.5px;line-height:1.5;color:var(--text-2)}
 .dl-note code{font-size:10px}
+/* Dialog SmartScreen sebelum unduh .exe. Isinya lebih panjang dari
+   confirm-modal biasa (ada daftar langkah), jadi jaraknya dilonggarkan
+   khusus di sini - kelas .ss-modal, bukan mengubah confirm-modal global
+   yang juga dipakai Delete Data. */
+.ss-modal h3{margin-bottom:8px}
+.ss-modal p{margin:0 0 8px;line-height:1.6}
+.ss-lead{font-size:13px;color:var(--text)}
+.ss-lead strong{color:var(--text)}
+.ss-why{font-size:12px;color:var(--text-2)}
+.ss-steps-t{font-size:12px;font-weight:700;color:var(--text)}
+.ss-steps{
+  margin:0 0 4px;padding:9px 11px 9px 28px;border-radius:9px;
+  background:var(--bg-2);border:1px solid var(--border);
+  font-size:12px;line-height:1.7;color:var(--text-2);
+}
+.ss-steps strong{color:var(--text)}
+
 /* Sidebar collapsed tidak punya ruang untuk submenu: buka lewat panel penuh. */
 .app.collapsed .dl-menu{display:none}
 .app.collapsed .dl-caret{margin-left:0}

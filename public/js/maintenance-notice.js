@@ -36,10 +36,24 @@ export function markNoticeShown(storage, now = Date.now()) {
   try { storage.setItem(STORAGE_KEY, String(now)); } catch (_) { /* storage diblokir, abaikan */ }
 }
 
-/* Tanggal hari berikutnya dalam bahasa Indonesia, biar pemberitahuan terasa
-   personal dan bukan sekadar angka. */
-export function nextNoticeDate(lastShownAt = Date.now(), now = Date.now()) {
-  const next = new Date((lastShownAt || now) + INTERVAL_MS);
+/* Tanggal pemberitahuan BERIKUTNYA, dalam bahasa Indonesia.
+
+   Anchor-nya adalah `now` - waktu banner ini sedang ditampilkan.
+   Versi lama memakai `lastShownAt` (kapan banner terakhir ditutup), dan
+   itu salah karena keduanya bisa berbeda jauh:
+
+     ditutup 8 Oktober, dibuka lagi 23 Oktober
+       lama  : 8 + 14 hari  = 22 Oktober   <-- MASA LALU, sudah lewat 1 hari
+       benar : 23 + 14 hari = 6 November
+
+   Banner_write "Pemberitahuan berikutnya: 22 Oktober" tepat di hari ke-15,
+   padahal tanggal itu sudah lewat. Itu bukan soal zona waktu atau hosting;
+   underlying-nya sejak awal salah anchor.
+
+  Kalau storage diblokir, lastShownAt = 0. `now` tetap jadi anchor
+   yang benar, jadi tidak perlu cabang khusus. */
+export function nextNoticeDate(now = Date.now()) {
+  const next = new Date(now + INTERVAL_MS);
   try {
     return next.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
   } catch (_) {

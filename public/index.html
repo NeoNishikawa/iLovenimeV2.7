@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>iLoveNime V2.7</title>
+<!-- Verifikasi Google Search Console. Meta ini hanya dibaca Google, bukan
+     browser pengguna: tanpa efek ke tampilan atau performa. Diletakkan di
+     <head> karena Google membacanya saat crawl, dan ini bukan kode yang
+     perlu di-cache-buster. -->
+<meta name="google-site-verification" content="V-PaJ2iWhEZn36gLgrDmaJaXyXoPi_h2gaCt5GEdM18" />
 <link rel="icon" href="/assets/logo.png" type="image/png" />
 <link rel="stylesheet" href="/css/tokens.css?v=2.3.9" />
 <link rel="stylesheet" href="/css/base.css" />
@@ -136,13 +141,13 @@ window.__ILN_SEAL__ = true;
         <div class="dl-menu" id="dlMenu" role="menu" aria-labelledby="dlToggle" hidden>
           <button class="dl-item" type="button" role="menuitem" data-dl="exe">
             <svg class="ico"><use href="#i-monitor"/></svg>
-            <span class="dl-t"><strong>Windows .exe</strong><small>Installer 91,5 MB</small></span>
+            <span class="dl-t"><strong>Windows .exe</strong><small>Installer ~96 MB · update otomatis</small></span>
           </button>
           <button class="dl-item" type="button" role="menuitem" data-dl="apk">
             <svg class="ico"><use href="#i-mobile"/></svg>
-            <span class="dl-t"><strong>Android .apk</strong><small>Android 8.0+ / 1,5 MB</small></span>
+            <span class="dl-t"><strong>Android .apk</strong><small>Segera hadir</small></span>
           </button>
-          <p class="dl-note" id="dlNote" hidden>Link unduhan belum diisi. Isi di <code>DOWNLOAD_LINKS</code> pada <code>reference-app.js</code>.</p>
+          <p class="dl-note" id="dlNote" hidden>Android .apk belum dirilis. Link-nya diisi di <code>DOWNLOAD_LINKS</code> pada <code>reference-app.js</code>.</p>
         </div>
       </div>
     </nav>

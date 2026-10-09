@@ -47,12 +47,38 @@ test("tombol Download dibuang di EXE dan APK, bukan sekadar disembunyikan", () =
     "harus dibuang dari DOM, bukan disembunyikan dengan CSS");
 });
 
-test("URL unduhan tidak ditebak: kosong berarti tombol nonaktif", () => {
-  assert.match(kodeBersih, /const DOWNLOAD_LINKS = \{ exe: "", apk: "" \}/,
-    "link harus kosong sampai Neo mengisinya - jangan menebak URL");
+test("link .exe diisi ke rilis GitHub, .apk sengaja masih kosong", () => {
+  /* .exe diisi 10 Oktober 2026 setelah Neo merilis ke GitHub. .apk BELUM
+     ada ril-nya, jadi tetap kosong - dan link yang kliknya mati lebih
+     buruk daripada tombol disabled yang alasannya ditulis. */
+  const blok = kode.match(/const DOWNLOAD_LINKS = \{[\s\S]*?\};/);
+  assert.ok(blok, "DOWNLOAD_LINKS tidak ditemukan");
+  assert.match(blok[0], /exe:\s*"https:\/\/github\.com\/NeoNishikawa\/ilovenime-model\/releases\/download\/exe\/iLoveNime-X[\d.]+-Setup-x64\.exe"/,
+    "link .exe harus menunjuk ke rilis GitHub");
+  assert.match(blok[0], /apk:\s*""/, ".apk harus tetap kosong sampai ada rilisnya");
+  /* Perilaku tombol kosong harus tetap ada: disabled + alasan. */
   assert.match(kodeBersih, /item\.disabled = true/);
-  assert.match(kodeBersih, /\$\("#dlNote"\)\.hidden = false/,
-    "alasan harus ditulis, bukan link yang klik-nya mati diam-diam");
+  assert.match(kode, /\$\("#dlNote"\)\.hidden = false/,
+    "alasan harus ditulis, bukan link yang kliknya mati diam-diam");
+});
+
+test("minimal satu link terisi, jadi tombolnya tidak semuanya mati", () => {
+  const isi = [...kode.matchAll(/^\s*(?:exe|apk):\s*"([^"]*)"/gm)].map((m) => m[1]).filter(Boolean);
+  assert.ok(isi.length >= 1, "minimal satu link harus terisi");
+});
+
+test("label .exe tidak mengikat ukuran yang akan basi", () => {
+  /* "Installer 91,5 MB" berasal dari build lama dan langsung salah begitu
+     ukurannya berubah - build sekarang 100.632.034 byte. Yang ditampilkan
+     perkiraan, ditambah keterangan bahwa updatenya otomatis: informasi yang
+     tidak perlu diperbarui setiap build. */
+  assert.match(indexHtml, /Windows \.exe<\/strong><small>Installer ~96 MB/,
+    "label .exe harus memakai perkiraan, bukan angka pasti");
+  assert.match(indexHtml, /update otomatis/, "harus menyebut update otomatis");
+  /* .apk belum ada, jadi labelnya menyatakan itu, bukan ukuran yang bisa
+     disalahartikan sebagai "hampir selesai". */
+  assert.match(indexHtml, /Android \.apk<\/strong><small>Segera hadir/,
+    "label .apk harus menyatakan belum ada, bukan ukuran");
 });
 
 test("menu Download punya gaya sendiri dan cache-buster naik", () => {
