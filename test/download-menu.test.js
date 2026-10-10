@@ -47,15 +47,22 @@ test("tombol Download dibuang di EXE dan APK, bukan sekadar disembunyikan", () =
     "harus dibuang dari DOM, bukan disembunyikan dengan CSS");
 });
 
-test("link .exe diisi ke rilis GitHub, .apk sengaja masih kosong", () => {
-  /* .exe diisi 10 Oktober 2026 setelah Neo merilis ke GitHub. .apk BELUM
-     ada ril-nya, jadi tetap kosong - dan link yang kliknya mati lebih
-     buruk daripada tombol disabled yang alasannya ditulis. */
+test("link .exe dan .apk diisi ke rilis GitHub, dengan tag yang bertahan", () => {
+  /* .apk diisi 11 Oktober 2026 setelah ril pertama di GitHub Releases.
+     Sengaja memakai tag "apk", bukan nama versinya - supaya URL tidak ikut
+     mati begitu versi berikutnya rilis. */
   const blok = kode.match(/const DOWNLOAD_LINKS = \{[\s\S]*?\};/);
   assert.ok(blok, "DOWNLOAD_LINKS tidak ditemukan");
   assert.match(blok[0], /exe:\s*"https:\/\/github\.com\/NeoNishikawa\/ilovenime-model\/releases\/download\/exe\/iLoveNime-X[\d.]+-Setup-x64\.exe"/,
     "link .exe harus menunjuk ke rilis GitHub");
-  assert.match(blok[0], /apk:\s*""/, ".apk harus tetap kosong sampai ada rilisnya");
+  assert.match(blok[0], /apk:\s*"https:\/\/github\.com\/NeoNishikawa\/ilovenime-model\/releases\/download\/apk\/iLoveNime-M[\d.]+-release\.apk"/,
+    "link .apk harus menunjuk ke rilis GitHub");
+  /* Tag .apk HARUS "apk". Kalau tautannya suatu saat ditulis ulang
+     menjadi .../download/v1.1.0/..., URL itu mati begitu versi berikutnya
+     rilis - dan pemeriksaan versi di dalam APK tidak akan pernah
+     menemukan apa-apa lagi. */
+  assert.match(blok[0], /releases\/download\/apk\//,
+    "link .apk harus memakai tag 'apk', bukan nomor versi - URL harus bertahan lintas rilis");
   /* Perilaku tombol kosong harus tetap ada: disabled + alasan. */
   assert.match(kodeBersih, /item\.disabled = true/);
   assert.match(kode, /\$\("#dlNote"\)\.hidden = false/,
@@ -75,10 +82,23 @@ test("label .exe tidak mengikat ukuran yang akan basi", () => {
   assert.match(indexHtml, /Windows \.exe<\/strong><small>Installer ~96 MB/,
     "label .exe harus memakai perkiraan, bukan angka pasti");
   assert.match(indexHtml, /update otomatis/, "harus menyebut update otomatis");
-  /* .apk belum ada, jadi labelnya menyatakan itu, bukan ukuran yang bisa
-     disalahartikan sebagai "hampir selesai". */
-  assert.match(indexHtml, /Android \.apk<\/strong><small>Segera hadir/,
-    "label .apk harus menyatakan belum ada, bukan ukuran");
+  /* .apk sudah rilis, jadi labelnya boleh menyebut ukuran - tapi perksiraan,
+     sama seperti .exe, karena ukurannya akan basi setiap build.
+     Yang WAJIB ada: keterangan bahwa Play Protect akan memindai. Tanpa
+     itu, pengguna mencapai peringatan pemindaian tanpa penjelasan dan
+     ada yang akan memilih batal. */
+  assert.match(indexHtml, /Android \.apk<\/strong><small>~[\d,]+ MB/,
+    "label .apk harus memakai perkiraan ukuran, bukan angka pasti");
+  assert.match(indexHtml, /Android \.apk<\/strong><small>[^<]*Play Protect/,
+    "label .apk harus menyebut pemindaian Play Protect - itu yang terjadi setelah diunduh");
+  /* Ukuran harus cocok dengan berkas yang benar-benar diunggah. 2.462.852 B
+     dibulatkan jadi ~2,4 MB; kalau build berikutnya jauh berbeda, angka ini
+     yang pertama perlu diperbarui. */
+  const label = (indexHtml.match(/Android \.apk<\/strong><small>([^<]+)/) || [])[1] || "";
+  const angka = parseFloat((label.match(/([\d.,]+)\s*MB/) || [])[1]?.replace(",", ".") || "0");
+  const nyata = 2462852 / 1048576;
+  assert.ok(Math.abs(angka - nyata) < 0.25,
+    `label .apk menyebut ~${angka} MB, berkas aslinya ${nyata.toFixed(2)} MB - perkiraan ini sudah basi`);
 });
 
 test("menu Download punya gaya sendiri dan cache-buster naik", () => {

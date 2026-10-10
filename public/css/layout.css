@@ -120,10 +120,24 @@
 .dl-t small{font-size:10.5px;color:var(--text-2)}
 .dl-note{margin:4px 4px 2px;font-size:10.5px;line-height:1.5;color:var(--text-2)}
 .dl-note code{font-size:10px}
-/* Dialog SmartScreen sebelum unduh .exe. Isinya lebih panjang dari
-   confirm-modal biasa (ada daftar langkah), jadi jaraknya dilonggarkan
-   khusus di sini - kelas .ss-modal, bukan mengubah confirm-modal global
-   yang juga dipakai Delete Data. */
+/* Dialog SmartScreen / Play Protect sebelum unduh. Isinya lebih
+   panjang dari confirm-modal biasa (ada daftar langkah), jadi
+   jaraknya dilonggarkan khusus di sini - kelas .ss-modal, bukan
+   mengubah confirm-modal global yang juga dipakai Delete Data.
+
+   BADANNYA bisa di-scroll. confirm-modal punya max-height:80vh,
+   tapi tidak punya pembungkus yang boleh overflow - konten yang
+   melebihi tinggi itu meluber KELUAR kartu, dan tombolnya ikut
+   terdorong ke bawah layar sampai tidak kelihatan. Terlihat di
+   perangkat 11 Okt 2026 pada modal Play Protect yang isinya satu
+   paragraf lebih panjang daripada SmartScreen.
+
+   min-height:0 itu wajib: tanpa itu flex child tidak mau menyusut
+   dan overflow-y tidak pernah aktif. */
+.ss-modal-body{overflow-y:auto;min-height:0;flex:1 1 auto;margin:0 -6px;padding:0 6px}
+/* Tombol TIDAK boleh ikut ter-scroll - selalu terlihat, supaya
+   pengguna tidak perlu menggulir dulu untuk tahu ada pilihan. */
+.ss-modal .confirm-actions{flex:0 0 auto;margin-top:4px}
 .ss-modal h3{margin-bottom:8px}
 .ss-modal p{margin:0 0 8px;line-height:1.6}
 .ss-lead{font-size:13px;color:var(--text)}

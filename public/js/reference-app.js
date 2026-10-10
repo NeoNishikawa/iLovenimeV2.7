@@ -759,9 +759,13 @@ function resetProgress(slug) {
 }
 
 async function playEpisode(slug, number, button) { const episodes = state.detail?.episodes || []; const newIndex = episodes.findIndex((e) => e.slug === slug); const direction = newIndex > state.episodeIndex ? "right" : "left"; state.episodeIndex = newIndex; startWatchClock(number); renderDetail(); updateEpisodeNav(); $("#playerBox").innerHTML = `<div class="player-loading"><div class="spinner"></div></div>`; try { const response = await api.mirrors(slug); state.mirrors = response.data || []; if (!state.mirrors.length) throw new Error("Mirror tidak tersedia saat ini."); state.mirrorIndex = 0; loadMirror(0, direction); button?.classList.add("watched"); } catch (error) { state.mirrors = []; state.mirrorIndex = 0; $("#mirrorLabel").textContent = "Mirror tidak tersedia"; $("#playerBox").innerHTML = `<div class="player-ph"><div class="msg">${esc(error.message)}</div></div>`; } }
-function loadMirror(index, direction = "right") { const mirror = state.mirrors[index]; if (!mirror) return; state.mirrorIndex = index; const box = $("#playerBox"); box.classList.add("mirror-fading"); setTimeout(() => { box.innerHTML = `<iframe src="${esc(mirror.url)}" title="Anime stream" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`; box.classList.remove("mirror-fading"); box.classList.add(`mirror-in-${direction === "left" ? "left" : "right"}`); box.addEventListener("animationend", () => box.classList.remove("mirror-in-right", "mirror-in-left"), { once: true }); showVideoControls(); }, 170); $("#mirrorLabel").textContent = mirror.name || `Mirror ${index + 1}`; $("#mirrorOptions").innerHTML = state.mirrors.map((m, i) => `<button data-mirror-index="${i}" class="${i === index ? "active" : ""}">${esc(m.name || `Mirror ${i + 1}`)}</button>`).join(""); closeActive(); $$("#mirrorOptions [data-mirror-index]").forEach((b) => b.onclick = (event) => { event.stopPropagation(); loadMirror(Number(b.dataset.mirrorIndex), Number(b.dataset.mirrorIndex) > index ? "right" : "left"); }); $("#mirrorNote").textContent = "Mirror aktif dari source streaming. Jika gagal, pilih mirror lain."; }
+function loadMirror(index, direction = "right") { const mirror = state.mirrors[index]; if (!mirror) return; state.mirrorIndex = index; const box = $("#playerBox"); box.classList.add("mirror-fading"); setTimeout(() => { box.innerHTML = `<iframe src="${esc(mirror.url)}" title="Anime stream" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`; box.classList.remove("mirror-fading"); box.classList.add(`mirror-in-${direction === "left" ? "left" : "right"}`); box.addEventListener("animationend", () => box.classList.remove("mirror-in-right", "mirror-in-left"), { once: true }); showVideoControls(); }, 170); $("#mirrorLabel").textContent = mirror.name || `Mirror ${index + 1}`; $("#mirrorOptions").innerHTML = state.mirrors.map((m, i) => `<button data-mirror-index="${i}" class="${i === index ? "active" : ""}">${esc(m.name || `Mirror ${i + 1}`)}</button>`).join(""); closeActive(); $$("#mirrorOptions [data-mirror-index]").forEach((b) => b.onclick = (event) => { event.stopPropagation(); loadMirror(Number(b.dataset.mirrorIndex), Number(b.dataset.mirrorIndex) > index ? "right" : "left"); }); /* #mirrorNote dihapus bersama sidebar kanannya: catatan itu hanya relevan
+   kalau kontrol player melayang di atas video. Sekarang mirror select jadi
+   baris sendiri di bawah iframe, jadi catatan tidak lagi dibutuhkan.
+   Optional chaining dipakai kalau nanti elemennya dikembalikan. */
+  $("#mirrorNote")?.replaceChildren(); }
 function renderDetail() { const a = state.detail; const item = getStored(a.slug); $("#watchTitle").textContent = a.title; $("#watchSub").textContent = `${a.type || "Series"} · ${a.status || "Unknown"}`; const epMulai = cwNextFor(item || {}) || (a.episodes || [])[0]; $("#playerBox").innerHTML = (a.episodes || []).length ? `<div class="player-ph"><button class="play-cta" type="button" data-player-start aria-label="Mulai episode ${esc(String(epMulai?.number ?? 1))}"><svg class="ico"><use href="#i-play"/></svg><span>Mulai EP ${String(epMulai?.number ?? 1).padStart(2, "0")}</span></button><div class="msg">${item?.watchedEpisodes?.length ? "Lanjut ke episode berikutnya, atau pilih di daftar." : "Satu klik untuk mulai — atau pilih episode di daftar."}</div></div>` : `<div class="player-ph"><div class="msg">Episode belum tersedia.</div></div>`; const tombolMulai = $("[data-player-start]"); if (tombolMulai && epMulai?.slug) tombolMulai.onclick = () => playEpisode(epMulai.slug, Number(epMulai.number), null); $("#watchDetailGrid").innerHTML = `<div class="detail-item"><div class="k">Episodes</div><div class="v">${a.episodes?.length || a.total || "?"}</div></div><div class="detail-item"><div class="k">Rating</div><div class="v">${a.rating || "—"}</div></div><div class="detail-item"><div class="k">Studio</div><div class="v">${esc(a.studio || "—")}</div></div>`; $("#watchSynopsis").textContent = a.synopsis || "Sinopsis belum tersedia dari source."; $("#watchGenres").innerHTML = (a.genres || []).map((g) => `<span class="chip">${esc(g.name || g)}</span>`).join(""); const favOn = Boolean(item?.favorite), disOn = Boolean(item?.dislike);
-$("#watchActions").innerHTML = `<button class="btn react-btn${favOn ? " is-fav" : ""}" data-detail-fav aria-pressed="${favOn}" title="Favorite"><svg class="ico"><use href="#i-star"/></svg><span class="rb-label">${favOn ? "Favorit" : "Favorite"}</span></button><button class="btn react-btn${disOn ? " is-dislike" : ""}" data-detail-dislike aria-pressed="${disOn}" title="Dislike"><svg class="ico"><use href="#i-thumb-down"/></svg><span class="rb-label">Dislike</span></button><button class="btn btn-primary" data-detail-add>${item ? "Saved locally" : "+Storage"}</button><button class="btn reset-btn" data-detail-reset ${item && (item.watchedEpisodes?.length || item.progress) ? "" : "disabled"} title="Ulangi dari Episode 1"><svg class="ico"><use href="#i-refresh"/></svg><span class="rb-label">Reset</span></button><button class="btn" data-detail-prev ${state.episodeIndex <= 0 ? "disabled" : ""}>← Previous</button><button class="btn" data-detail-next ${state.episodeIndex >= (a.episodes?.length || 1) - 1 ? "disabled" : ""}>Next →</button>`; $("#episodeList").innerHTML = (a.episodes || []).map((ep, index) => `<button class="ep-item ${item?.watchedEpisodes?.includes(Number(ep.number)) ? "watched" : ""}" data-episode-slug="${esc(ep.slug)}" data-episode-number="${esc(ep.number)}"><span class="st">${item?.watchedEpisodes?.includes(Number(ep.number)) ? "✓" : ""}</span><span>EP ${String(ep.number).padStart(2, "0")} · ${esc(ep.title || "Episode")}</span></button>`).join("") || empty("Episode belum tersedia.", "Source belum mengembalikan episode."); $("[data-detail-add]").onclick = (event) => addStorage(a.slug, event.currentTarget); $("[data-detail-reset]").onclick = () => { const item = getStored(a.slug); if (!item) return; openConfirm("Reset progress?", `Semua centang episode ${item.title} akan dihapus dan mulai lagi dari Episode 1.`, () => resetProgress(a.slug), { silent: true, confirmLabel: "Reset", confirmClass: "btn btn-primary" }); }; $("[data-detail-fav]").onclick = () => setAnimeReaction(a.slug, "favorite"); $("[data-detail-dislike]").onclick = () => setAnimeReaction(a.slug, "dislike"); $("[data-detail-prev]").onclick = () => navigateEpisode(-1); $("[data-detail-next]").onclick = () => navigateEpisode(1); $$('[data-episode-slug]').forEach((b) => b.onclick = () => playEpisode(b.dataset.episodeSlug, Number(b.dataset.episodeNumber), b)); }
+$("#watchActions").innerHTML = `<button class="btn react-btn${favOn ? " is-fav" : ""}" data-detail-fav aria-pressed="${favOn}" title="Favorite"><svg class="ico"><use href="#i-star"/></svg><span class="rb-label">${favOn ? "Favorit" : "Favorite"}</span></button><button class="btn react-btn${disOn ? " is-dislike" : ""}" data-detail-dislike aria-pressed="${disOn}" title="Dislike"><svg class="ico"><use href="#i-thumb-down"/></svg><span class="rb-label">Dislike</span></button><button class="btn btn-primary" data-detail-add>${item ? "Saved locally" : "+Storage"}</button><button class="btn reset-btn" data-detail-reset ${item && (item.watchedEpisodes?.length || item.progress) ? "" : "disabled"} title="Ulangi dari Episode 1"><svg class="ico"><use href="#i-refresh"/></svg><span class="rb-label">Reset</span></button><button class="btn" data-detail-prev ${state.episodeIndex <= 0 ? "disabled" : ""}>← Previous</button><button class="btn" data-detail-next ${state.episodeIndex >= (a.episodes?.length || 1) - 1 ? "disabled" : ""}>Next →</button>`; $("#episodeList").innerHTML = (a.episodes || []).map((ep, index) => `<button class="ep-item ${item?.watchedEpisodes?.includes(Number(ep.number)) ? "watched" : ""}" data-episode-slug="${esc(ep.slug)}" data-episode-number="${esc(ep.number)}"><span class="st">${item?.watchedEpisodes?.includes(Number(ep.number)) ? "✓" : ""}</span><span>${esc(String(ep.number))}</span></button>`).join("") || empty("Episode belum tersedia.", "Source belum mengembalikan episode."); $("[data-detail-add]").onclick = (event) => addStorage(a.slug, event.currentTarget); $("[data-detail-reset]").onclick = () => { const item = getStored(a.slug); if (!item) return; openConfirm("Reset progress?", `Semua centang episode ${item.title} akan dihapus dan mulai lagi dari Episode 1.`, () => resetProgress(a.slug), { silent: true, confirmLabel: "Reset", confirmClass: "btn btn-primary" }); }; $("[data-detail-fav]").onclick = () => setAnimeReaction(a.slug, "favorite"); $("[data-detail-dislike]").onclick = () => setAnimeReaction(a.slug, "dislike"); $("[data-detail-prev]").onclick = () => navigateEpisode(-1); $("[data-detail-next]").onclick = () => navigateEpisode(1); $$('[data-episode-slug]').forEach((b) => b.onclick = () => playEpisode(b.dataset.episodeSlug, Number(b.dataset.episodeNumber), b)); }
 function navigateEpisode(delta) { const episodes = state.detail?.episodes || []; const target = episodes[state.episodeIndex + delta]; if (!target) return; playEpisode(target.slug, Number(target.number), null); updateEpisodeNav(); }
 function updateEpisodeNav() { $("[data-detail-prev]")?.toggleAttribute("disabled", state.episodeIndex <= 0); $("[data-detail-next]")?.toggleAttribute("disabled", state.episodeIndex >= (state.detail?.episodes?.length || 1) - 1); /* Sinkronkan tombol overlay video */ const prev = $("#prevEpBtn"), next = $("#nextEpBtn"); prev?.toggleAttribute("disabled", state.episodeIndex <= 0); next?.toggleAttribute("disabled", state.episodeIndex >= (state.detail?.episodes?.length || 1) - 1); }
 
@@ -966,8 +970,8 @@ const FILTER_OPTIONS = { mainType: [["","Tipe"],["Serial TV","Serial TV"],["Live
 /* URL unduhan diisi terpisah, sengaja TIDAK ditebak di sini: installer .exe
    sekitar 96 MB dan .apk 1,5 MB tidak disimpan di repo ini.
 
-   .exe sudah diisi (rilis 10 Oktober 2026). .apk sengaja masih kosong -
-   belum ada ril-nya, dan link yang klik-nya mati lebih buruk daripada
+   .apk juga sudah diisi (rilis 11 Oktober 2026).
+
    tombol yang disabled dengan alasannya ditulis.
 
    PENTING: URL .exe ini juga dipakai oleh auto-update EXE sebagai sumber
@@ -976,7 +980,14 @@ const FILTER_OPTIONS = { mainType: [["","Tipe"],["Serial TV","Serial TV"],["Live
    update akan mengarahkan pengguna ke rilis yang salah. */
 const DOWNLOAD_LINKS = {
   exe: "https://github.com/NeoNishikawa/ilovenime-model/releases/download/exe/iLoveNime-X1.6.0-Setup-x64.exe",
-  apk: "",
+  /* .apk diisi 11 Oktober 2026 setelah rilis pertama di GitHub Releases.
+     Tag "apk" dipakai sengaja: URL-nya TIDAK ikut berubah saat berkas
+     diganti ke versi berikutnya. Itu yang dibutuhkan pemeriksaan versi
+     nanti - satu URL tetap, berkas di belakangnya yang diperbarui.
+
+     Kalau nanti .-url ini diganti ke tempat lain, build berikutnya harus
+     ikut mengarahkan publish-nya, persis seperti catatan .exe di atas. */
+  apk: "https://github.com/NeoNishikawa/ilovenime-model/releases/download/apk/iLoveNime-M1.1-release.apk",
 };
 
 /* EXE punya aplikasinya sendiri; APK memblokir navigasi ke luar lewat NavGuard
@@ -1026,13 +1037,59 @@ function pasangMenuDownload() {
          yang menampilkan SmartScreen bukan situs kita, jadipenjelasannya
          harus muncul SEBELUM unduhan mulai.
 
-         .apk sengaja tidak lewat sini: Android tidak punya SmartScreen,
-         dan OS Android punya flow permission sendiri yang tidak bisa
-         dicampur instructions Windows. */
+         .apk lewat showPlayProtectNotice() dengan alasan yang sama seperti
+         .exe lewat showSmartScreenNotice(): keduanya keluar dari luar store
+         resmi, jadi sistem menampilkan peringatan sebelum pemasangan.
+         Android punya Play Protect - cuma namanya berbeda dari SmartScreen. */
       if (item.dataset.dl === "exe") { showSmartScreenNotice(url); return; }
+      if (item.dataset.dl === "apk") { showPlayProtectNotice(url); return; }
       window.open(url, "_blank", "noopener");
     };
   });
+}
+
+/* Konfirmasi sebelum unduh .apk. Pasangannya showSmartScreenNotice(),
+   dan tujuannya sama: sistem akan menampilkan peringatan
+   sebelum pemasangan, jadi penjelasan harus muncul SEBELUM unduhan
+   mulai - bukan jadi kejutan setelah berkas terbuka.
+
+   Kenapa tidak sekadar "boleh install saja": kalimat seperti itu
+   menyuruh pengguna mematikan peringatan tanpa syarat. Kalau someday
+   build-nya diretas, kalimat yang sama itu yang membuat orang menekan
+   tombolnya tanpa berpikir. Jadi urutannya: normalkan dulu (peringatan
+   itu diharapkan), beri cara MEMERIKSA sendiri, baru bolehkan. */
+function showPlayProtectNotice(url) {
+  const root = $("#confirmRoot");
+  if (!root || !url) return;
+  root.querySelectorAll(".overlay").forEach((lama) => lama.remove());
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.innerHTML = `<div class="confirm-modal ss-modal" role="dialog" aria-modal="true" aria-labelledby="ppTtl">
+    <div class="confirm-alert warn"><svg class="ico"><use href="#i-info"/></svg></div>
+    <div class="ss-modal-body">
+    <h3 id="ppTtl">Sebelum memasang di Android</h3>
+    <p class="ss-lead">Saat dipasang, Android akan meminta izin memindai berkas ini dengan <strong>Google Play Protect</strong>. <strong>Izinkan pindainya</strong> - itu pemeriksaan yang memang diwajibkan Google sebelum aplikasi apa pun dipasang, dan izinlah yang diminta.</p>
+    <p class="ss-why">Play Protect hanya bisa memverifikasi aplikasi yang berasal dari Google Play. Berkas .apk di luar store tidak punya verifikasi itu, jadi Android tetap memindainya lebih dulu. OnePlus, Oppo, dan Xiaomi menamai langkahnya sedikit berbeda, tapi intinya sama: Allow/Ya/Setuju saat ditanya memindai.</p>
+    <p class="ss-steps-t">Urutan pasang di Android:</p>
+    <ol class="ss-steps">
+      <li>Unduh berkasnya.</li>
+      <li>Buka dari notifikasi unduhan - Android akan menampilkan dialog pemindaian.</li>
+      <li>Izinkan pindai (Allow / Scan anyway / Ya).</li>
+      <li>Tunggu pemeriksaan selesai, lalu pemasangan diteruskan.</li>
+    </ol>
+    <p class="ss-why">Kalau kamu memilih untuk tidak mengizinkan pemindaian dari luar Play Store, jangan pasang lewat cara ini - aplikasi ini memang tidak ada di Google Play. Itu pilihan yang wajar, dan tidak ada yang perlu diotomatisasi di sini.</p>
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-primary" data-pp-go>Lanjut unduh</button>
+      <button class="btn btn-ghost" data-pp-cancel>Batal</button>
+    </div></div>`;
+  root.appendChild(overlay);
+  const close = () => { overlay.classList.add("is-closing"); $(".confirm-modal", overlay).classList.add("is-closing"); setTimeout(() => overlay.remove(), 220); };
+  $("[data-pp-cancel]", overlay).onclick = close;
+  $("[data-pp-go]", overlay).onclick = () => { close(); setTimeout(() => window.open(url, "_blank", "noopener"), 230); };
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  $("[data-pp-go]", overlay).focus();
+  overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 }
 
 /* Konfirmasi sebelum unduh .exe. Ada dua tombol: "Batal" membatalkan,
@@ -1048,6 +1105,7 @@ function showSmartScreenNotice(url) {
   overlay.className = "overlay";
   overlay.innerHTML = `<div class="confirm-modal ss-modal" role="dialog" aria-modal="true" aria-labelledby="ssTtl">
     <div class="confirm-alert warn"><svg class="ico"><use href="#i-info"/></svg></div>
+    <div class="ss-modal-body">
     <h3 id="ssTtl">Sebelum mengunduh</h3>
     <p class="ss-lead">Saat installer dibuka, Windows mungkin menampilkan peringatan <strong>"Windows protected your PC"</strong> atau <strong>"Unknown Publisher"</strong>. Itu <strong>wajar</strong> untuk perangkat lunak independen yang baru - bukan tanda file rusak.</p>
     <p class="ss-why">iLoveNime dibuat independen, jadi installer-nya belum punya sertifikat digital resmi. Windows tidak mengenali penerbitnya, makanya peringatan muncul.</p>
@@ -1056,6 +1114,7 @@ function showSmartScreenNotice(url) {
       <li>Klik <strong>"More info"</strong> di kiri bawah jendela.</li>
       <li>Klik <strong>"Run anyway"</strong>.</li>
     </ol>
+    </div>
     <div class="confirm-actions">
       <button class="btn btn-primary" data-ss-go>Lanjut unduh</button>
       <button class="btn btn-ghost" data-ss-cancel>Batal</button>

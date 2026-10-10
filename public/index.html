@@ -145,9 +145,9 @@ window.__ILN_SEAL__ = true;
           </button>
           <button class="dl-item" type="button" role="menuitem" data-dl="apk">
             <svg class="ico"><use href="#i-mobile"/></svg>
-            <span class="dl-t"><strong>Android .apk</strong><small>Segera hadir</small></span>
+            <span class="dl-t"><strong>Android .apk</strong><small>~2,4 MB · pemindaian Play Protect</small></span>
           </button>
-          <p class="dl-note" id="dlNote" hidden>Android .apk belum dirilis. Link-nya diisi di <code>DOWNLOAD_LINKS</code> pada <code>reference-app.js</code>.</p>
+<p class="dl-note" id="dlNote" hidden>Android .apk sudah dirilis. Saat dipasang, Android meminta izin memindaikan berkas dengan Google Play Protect - izinkan, itu pemeriksaan yang diwajibkan Google.</p>
         </div>
       </div>
     </nav>
@@ -432,31 +432,46 @@ window.__ILN_SEAL__ = true;
           <div class="vo-hotspot" aria-hidden="true"></div>
           <div class="video-overlay" id="videoOverlay" hidden>
             <div class="vo-bar">
-              <div class="custom-mirror-select vo-mirror" id="mirrorSelectWrapper">
-                <button class="mirror-trigger" id="mirrorTrigger" aria-haspopup="true" aria-expanded="false">
-                  <svg class="ico"><use href="#i-database"/></svg>
-                  <span id="mirrorLabel">Memuat mirror…</span>
-                  <svg class="ico gf-chev"><use href="#i-chev-down"/></svg>
-                </button>
-                <div class="mirror-options" id="mirrorOptions" hidden></div>
-              </div>
-              <div class="vo-actions">
-                <button class="vo-btn" id="pipBtn" title="Popup player (tetap jalan)" aria-label="Popup player">
-                  <svg class="ico"><use href="#i-pip"/></svg>
-                </button>
-                <button class="vo-btn" id="prevEpBtn" title="Episode sebelumnya" aria-label="Episode sebelumnya">
-                  <svg class="ico"><use href="#i-prev"/></svg>
-                </button>
-                <button class="vo-btn" id="nextEpBtn" title="Episode berikutnya" aria-label="Episode berikutnya">
-                  <svg class="ico"><use href="#i-next"/></svg>
-                </button>
-              </div>
+              <div class="vo-hint">Klik video untuk menampilkan kontrol player</div>
             </div>
+          </div>
+        </div>
+        <!-- Pilihan mirror: DI BAWAH iframe, TETAP DI ATAS judul.
+             Sebelumnya ada di dalam video-overlay (melayang di atas video),
+             yang menutupi gambar dan sulit dikejar jarinya saat tangan
+             memegang HP. Sekarang jadi baris sendiri: selalu terlihat,
+             tidak pernah menutupi player, dan tidak menambah lapisan
+             komposisi di atas video.
+             Popup player (PiP) dihapus: tidak ada lagi di shell. -->
+        <div class="mirror-row">
+          <div class="custom-mirror-select" id="mirrorSelectWrapper">
+            <button class="mirror-trigger" id="mirrorTrigger" aria-haspopup="true" aria-expanded="false">
+              <svg class="ico"><use href="#i-database"/></svg>
+              <span id="mirrorLabel">Memuat mirror…</span>
+              <svg class="ico gf-chev"><use href="#i-chev-down"/></svg>
+            </button>
+            <div class="mirror-options" id="mirrorOptions" hidden></div>
+          </div>
+          <div class="vo-actions">
+            <button class="vo-btn" id="pipBtn" title="Popup player (tetap jalan)" aria-label="Popup player">
+              <svg class="ico"><use href="#i-pip"/></svg>
+            </button>
+            <button class="vo-btn" id="prevEpBtn" title="Episode sebelumnya" aria-label="Episode sebelumnya">
+              <svg class="ico"><use href="#i-prev"/></svg>
+            </button>
+            <button class="vo-btn" id="nextEpBtn" title="Episode berikutnya" aria-label="Episode berikutnya">
+              <svg class="ico"><use href="#i-next"/></svg>
+            </button>
           </div>
         </div>
         <div class="watch-title" id="watchTitle">—</div>
         <div class="watch-sub" id="watchSub">—</div>
         <div class="watch-actions" id="watchActions"></div>
+        <!-- Daftar episode: di ATAS section Detail Anime, di BAWAH tombol.
+             Semula di sidebar kanan, yang di HP sempit terpotong dan
+            umbered jauh dari player yang sedang ditonton. -->
+        <div class="panel-title">Episode List</div>
+        <div class="ep-list" id="episodeList"></div>
         <div class="detail-block">
           <h4>Detail Anime</h4>
           <div class="detail-grid" id="watchDetailGrid"></div>
@@ -464,17 +479,6 @@ window.__ILN_SEAL__ = true;
           <div class="genre-chips" id="watchGenres"></div>
         </div>
       </div>
-      <aside class="watch-right">
-        <div class="mirror-note-box">
-          <div class="note" id="mirrorNote">
-            Klik di dalam area video untuk memunculkan kontrol: pilih mirror,
-            episode sebelumnya/berikutnya, atau popup player. Kontrol di dalam
-            iframe bergantung pada sumber player.
-          </div>
-        </div>
-        <div class="panel-title">Episode List</div>
-        <div class="ep-list" id="episodeList"></div>
-      </aside>
     </div>
   </div>
 </div>
