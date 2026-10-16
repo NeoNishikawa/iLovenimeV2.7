@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>iLoveNime V2.7</title>
+<meta name="description" content="iLoveNime - pelacak anime pribadi. Cari anime, lihat episode, tandai sudah ditonton, dan lanjutkan dari perangkat mana pun. Koleksi dan progres disimpan di browser kamu sendiri." />
 <!-- Verifikasi Google Search Console. Meta ini hanya dibaca Google, bukan
      browser pengguna: tanpa efek ke tampilan atau performa. Diletakkan di
      <head> karena Google membacanya saat crawl, dan ini bukan kode yang
@@ -12,15 +13,45 @@
 <link rel="icon" href="/assets/logo.png" type="image/png" />
 <link rel="stylesheet" href="/css/tokens.css?v=2.3.9" />
 <link rel="stylesheet" href="/css/base.css" />
-<link rel="stylesheet" href="/css/layout.css?v=2.5.0" />
-<link rel="stylesheet" href="/css/components.css?v=2.12.0" />
+<link rel="stylesheet" href="/css/layout.css?v=2.8.0" />
+<link rel="stylesheet" href="/css/components.css?v=2.14.0" />
 <link rel="stylesheet" href="/css/screen-time.css?v=1.0.1" />
-<link rel="stylesheet" href="/css/morph.css?v=2.4.1" />
+<link rel="stylesheet" href="/css/morph.css?v=2.4.2" />
 <link rel="stylesheet" href="/css/continue.css?v=2.3.2" />
 <link rel="stylesheet" href="/css/motion.css?v=2.3.6" />
 <link rel="stylesheet" href="/css/animations.css" />
-<link rel="stylesheet" href="/css/responsive.css" />
-<link rel="stylesheet" href="/css/seal.css?v=1.1.0" />
+<link rel="stylesheet" href="/css/responsive.css?v=2.4.0" />
+<link rel="stylesheet" href="/css/seal.css?v=1.2.0" />
+<script>
+/* Pita pemeliharaan: keputusannya diambil DI SINI, sebelum badan dokumen
+   diurai. Sebelumnya pita disuntik JS setelah halaman dimuat, lalu badan
+   dokumen didorong turun sebesar tinggi pitanya. Semua elemen melorot 123 px
+   di mata pengguna (242 px di layar 320 px) - itu angka CLS 0,719 yang
+   tercatat di PageSpeed 13 Okt 2026. Menaruh keputusannya di sini membuat
+   ruang itu sudah ada sejak render pertama, jadi tidak ada yang bergeser.
+
+   Script ini WAJIB sinkron: async atau defer baru berjalan setelah HTML
+   selesai diurai, yaitu tepat waktu yang sedang menyebabkan pergeseran.
+
+   Penjaga WebView dan ?shell=apk ikut di sini, bukan cuma di modul. Kalau
+   tidak, shell APK akan mendapat ruang kosong di atas padahal tidak pernah
+   menampilkan pita. */
+(function () {
+  try {
+    var ua = navigator.userAgent || "";
+    var webview = /;\s*wv\)/.test(ua) || (/Android/.test(ua) && /Version\/[\d.]+\s*Chrome/.test(ua));
+    var shell = new URLSearchParams(location.search).get("shell") === "apk";
+    if (webview || shell) return;
+    var last = Number(localStorage.getItem("iln.notice.lastShownAt")) || 0;
+    if (Date.now() - last >= 14 * 24 * 60 * 60 * 1000) {
+      document.documentElement.classList.add("notice-open");
+    }
+  } catch (_) {
+    /* storage diblokir: lebih baik pita muncul daripada halaman gagal. */
+    document.documentElement.classList.add("notice-open");
+  }
+})();
+</script>
 <script type="importmap">{ "imports": { "three": "/vendor/three/three.module.js", "animejs": "/vendor/animejs/anime.esm.min.js" } }</script>
 <script>
 // Kunci integritas diperiksa SEBELUM aplikasi apa pun dimuat, supaya mode
@@ -31,6 +62,18 @@ window.__ILN_SEAL__ = true;
   <meta name="iln-seal" content="copyright LoveNime" />
 </head>
 <body>
+
+<!-- Pita pemeliharaan. Ada di HTML awal, bukan disuntik JS: supaya ruangnya
+     sudah dipesan sejak render pertama dan tidak ada yang melorot. Teks
+     "berikutnya" diisi modul setelahnya, karena hanya bisa dihitung di
+     browser -=white-space:nowrap menjaga tinggi barisnya tetap. -->
+<div class="notice-banner" id="noticeBanner" role="status" aria-live="polite" aria-labelledby="maintenanceNoticeTitle">
+  <div class="maintenance-badge"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg></div>
+  <h3 id="maintenanceNoticeTitle" class="nb-title">Pemberitahuan Pemeliharaan</h3>
+  <p class="nb-text">Pemeliharaan server rutin setiap <b>14 hari</b> agar katalog, mirror, dan kecepatan pencarian tetap stabil. <b>Mohon maaf</b> atas ketidaknyamanannya &mdash; data anime kamu di perangkat ini <b>tidak akan hilang</b>.</p>
+  <span class="nb-next">Pemberitahuan berikutnya: <b id="noticeNext">14 hari lagi</b></span>
+  <button class="btn btn-ghost nb-close" data-notice-ok>Mengerti</button>
+</div>
 
 <svg style="display:none" aria-hidden="true">
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></symbol>
@@ -165,7 +208,7 @@ window.__ILN_SEAL__ = true;
     <svg class="ico" id="sbToggleIcon"><use href="#i-chev-left"/></svg>
   </button>
 
-  <div class="main">
+  <main class="main">
     <header class="header">
       <button class="hamburger" id="hamburgerBtn" aria-label="Buka menu" aria-expanded="false">
         <svg class="ico"><use href="#i-menu"/></svg>
@@ -480,7 +523,7 @@ window.__ILN_SEAL__ = true;
         </div>
       </div>
     </div>
-  </div>
+  </main>
 </div>
 
 <!-- Filter gooey sudah tidak dipakai: efek gumpalan dihapus dari kartu
@@ -510,7 +553,7 @@ window.__ILN_SEAL__ = true;
 <div class="toast-stack" id="toastStack"></div>
 <canvas id="ambientCanvas" aria-hidden="true" style="position:fixed;inset:0;z-index:-2;width:100%;height:100%;pointer-events:none;opacity:.5"></canvas>
 
-<script type="module" src="/js/reference-app.js?v=2.18.0"></script>
+<script type="module" src="/js/reference-app.js?v=2.30.0"></script>
 <script type="module" src="/js/ambient.js?v=2.0.6"></script>
 </body>
 </html>

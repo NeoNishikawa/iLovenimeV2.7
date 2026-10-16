@@ -205,7 +205,7 @@ function bindPager(root) {
   prev?.addEventListener("click", () => setGridPage(prev.dataset.pagerPrev, -1));
   next?.addEventListener("click", () => setGridPage(next.dataset.pagerNext, 1));
 }
-function scrollToGrid(grid) { grid?.closest("section")?.scrollIntoView?.({ behavior: "smooth", block: "start" }); }
+function scrollToGrid(grid) { grid?.closest("section")?.posisiMenu?.({ behavior: "smooth", block: "start" }); }
 
 /* ---------- Data helpers ---------- */
 function normalizeStored(raw = {}) { const watchedEpisodes = Array.isArray(raw.watchedEpisodes) ? [...new Set(raw.watchedEpisodes.map(Number).filter(Number.isFinite))].sort((a, b) => a - b) : []; const progress = Math.max(Number(raw.progress || 0), watchedEpisodes.at(-1) || 0); const status = raw.status || (raw.dislike ? "dropped" : raw.planToWatch || !progress ? "planned" : raw.total && progress >= raw.total ? "completed" : "watching"); return { ...raw, characters: Array.isArray(raw.characters) ? raw.characters.map((c) => typeof c === "string" ? c : c.name).filter(Boolean) : [], slug: String(raw.slug || raw.animeId || ""), animeId: String(raw.animeId || raw.slug || ""), title: String(raw.title || "Unknown title"), image: raw.image || raw.posterUrl || "", posterUrl: raw.posterUrl || raw.image || "", total: Number(raw.total || raw.totalEpisodes || 0), totalEpisodes: Number(raw.totalEpisodes || raw.total || 0), progress, watchedEpisodes, status, genres: Array.isArray(raw.genres) ? raw.genres.map((g) => typeof g === "string" ? g : g.name).filter(Boolean) : [] }; }
@@ -332,17 +332,27 @@ function lockSearch(locked) {
   const input = $("#globalSearch");
   if (!input || !input.placeholder) return;
   const PHRASES = ["Cari anime…", "Ketik judul atau genre…", "Contoh: Sailor moon "];
+  /* Mobile: satu perintah saja. Genre di sana tidak punya picker, jadi
+     "/genre" yang mengiklankannya. Desktop tidak boleh tersentuh - genre
+     masih punya tombolnya, jadi placeholder yang lama masih jujur. */
+  const mobileCmd = window.matchMedia("(max-width: 767px)");
+  const PHRASES_MOBILE = ["/"];
+  const phrases = () => (mobileCmd.matches ? PHRASES_MOBILE : PHRASES);
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
   if (reduced.matches) return;
-  input.placeholder = PHRASES[0];
+  input.placeholder = phrases()[0];
   let phrase = 0, chars = 0, deleting = false, timer = 0;
   const tick = () => {
-    const current = PHRASES[phrase];
+    const list = phrases();
+    const current = list[phrase % list.length];
+    /* Mobile: satu frasa "/genre" yang diketik-hapus membuat layar
+       berkedip. Diam saja di situ. */
+    if (list === PHRASES_MOBILE) { input.placeholder = current; return; }
     chars += deleting ? -1 : 1;
     input.placeholder = current.slice(0, chars);
     let wait = deleting ? 45 : 95;
     if (!deleting && chars === current.length) { deleting = true; wait = 1500; }
-    else if (deleting && chars === 0) { deleting = false; phrase = (phrase + 1) % PHRASES.length; wait = 500; }
+    else if (deleting && chars === 0) { deleting = false; phrase = (phrase + 1) % list.length; wait = 500; }
     timer = setTimeout(tick, wait);
   };
   const stop = () => { clearTimeout(timer); timer = 0; };
@@ -350,6 +360,7 @@ function lockSearch(locked) {
   input.addEventListener("input", stop, { once: true });
   /* Jangan mengetik ketika ada permintaan yang sedang jalan. */
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") stop(); });
+  mobileCmd.addEventListener("change", () => { stop(); input.placeholder = phrases()[0]; });
   timer = setTimeout(tick, 900);
 })();
 function waveLoaderHTML(caption = "Memuat update terbaru…") {
@@ -480,7 +491,12 @@ function updateSearchUI() {
   if (hint) {
     hint.hidden = !(hasPicks && !hasQuery);
     /* Bersihkan isi saat tersembunyi agar tidak menyisakan tag basi */
-    tags.innerHTML = !hint.hidden ? picks.map((p) => `<span class="sh-tag">${esc(p.label)}</span>`).join("") : "";
+    /* Tag di bawah kotak dibuat bisa diklik, bukan sekadar label. Di mobile
+       inilah satu-satunya tempat pilihan genre terlihat (picker-nya
+       disembunyikan), jadi tag yang tak bisa dihapus berarti pilihan yang
+       tidak bisa dibatalkan dari layar yang sama. */
+    tags.innerHTML = !hint.hidden ? picks.map((p) => `<button type="button" class="sh-tag" data-chip-kind="${p.kind}" data-chip-key="${esc(p.slug || p.label)}" title="Hapus pilihan ini">${esc(p.label)}<svg class="ico"><use href="#i-close"/></svg></button>`).join("") : "";
+    if (!hint.hidden) $$("[data-chip-key]", tags).forEach((btn) => btn.onclick = (event) => { event.stopPropagation(); removeSearchPick(btn.dataset.chipKind, btn.dataset.chipKey); });
   }
   if (chips) {
     chips.hidden = !(hasPicks && hasQuery);
@@ -979,15 +995,17 @@ const FILTER_OPTIONS = { mainType: [["","Tipe"],["Serial TV","Serial TV"],["Live
    build berikutnya harus ikut mengarahkan publish-nya, atau pemeriksaan
    update akan mengarahkan pengguna ke rilis yang salah. */
 const DOWNLOAD_LINKS = {
-  exe: "https://github.com/NeoNishikawa/ilovenime-model/releases/download/exe/iLoveNime-X1.6.0-Setup-x64.exe",
-  /* .apk diisi 11 Oktober 2026 setelah rilis pertama di GitHub Releases.
-     Tag "apk" dipakai sengaja: URL-nya TIDAK ikut berubah saat berkas
-     diganti ke versi berikutnya. Itu yang dibutuhkan pemeriksaan versi
-     nanti - satu URL tetap, berkas di belakangnya yang diperbarui.
+  exe: "https://github.com/NeoNishikawa/ilovenime-model/releases/download/exe/iLoveNime-X1.7.2-Setup-x64.exe",
+  /* .apk diisi 11 Oktober 2026 setelah rilis pertama di GitHub Releases,
+     lalu nama berkasnya diperbarui tiap rilis (M1.1 -> M1.1.2).
+     Tag "apk" dipakai sengaja dan tidak ikut berubah; yang berubah
+     adalah nama berkas setelahnya. Itu yang dibutuhkan pemeriksaan
+     versi nanti - satu tag tetap, berkas di belakangnya yang
+     diperbarui.
 
      Kalau nanti .-url ini diganti ke tempat lain, build berikutnya harus
      ikut mengarahkan publish-nya, persis seperti catatan .exe di atas. */
-  apk: "https://github.com/NeoNishikawa/ilovenime-model/releases/download/apk/iLoveNime-M1.1-release.apk",
+  apk: "https://github.com/NeoNishikawa/ilovenime-model/releases/download/apk/iLoveNime-M1.1.2-release.apk",
 };
 
 /* EXE punya aplikasinya sendiri; APK memblokir navigasi ke luar lewat NavGuard
@@ -1013,8 +1031,85 @@ function pasangMenuDownload() {
   const toggle = $("#dlToggle");
   const menu = $("#dlMenu");
   const items = $$(".dl-item");
+  /* Posisi menu diukur RELATIF KE SIDEBAR, bukan ke layar. Alasannya
+     .sidebar punya transform (translateX untuk drawer), jadi ia yang
+     jadi containing block position:fixed di dalamnya. Kalau koordinatnya
+     diukur terhadap viewport, panel akan meleset sebesar pergeseran
+     drawer - persis seperti yang terjadi dengan .header + backdrop-filter
+     di perintah /genre.
+
+     Dipakai relatif ke sidebar juga menyelesaikan masalah aslinya: menu
+     ini item terakhir dari .sb-nav yang overflow-y:auto, jadi ia ikut
+     terpotong. Dengan position:fixed ia keluar dari flow nav itu, dan
+     tetap ikut bergerak bersama drawer. */
+  const posisiMenu = () => {
+    const induk = wrap.closest(".sidebar") || document.body;
+    /* .sidebar HANYA jadi containing block position:fixed kalau punya
+       transform/filter/backdrop-filter/will-change/contain. Di mobile ia
+       punya transform (translateX untuk drawer) - jadi koordinat relatif
+       ke sidebar benar. Di desktop TIDAK punya transform, jadi
+       position:fixed dihitung dari viewport - dan koordinat yang kita
+       hitung dari sidebar meleset sebesar tinggi sidebar (65px), sehingga
+       menu muncul 23px di ATAS tombolnya.
+
+       Mengukur dari basis yang benar, bukan dari asumsi. */
+    const g = getComputedStyle(induk);
+    const jadiBasis = g.transform !== "none" || g.filter !== "none" || g.backdropFilter !== "none"
+      || g.willChange !== "auto" || g.contain !== "none" || g.perspective !== "none";
+    const basis = jadiBasis ? induk : document.documentElement;
+    const rInduk = basis.getBoundingClientRect();
+    const rTombol = toggle.getBoundingClientRect();
+    /* Di layar sangat pendek, .sb-nav meluap dan tombol ini bisa berada
+       di luar kotak nav -.clip, tapi di tempat yang persis sama dengan
+       tombol "Delete Data" yang ada di luar nav.-diukur 320x568: tap mendarat
+       ke Delete Data, yang holdable() jadi tidak melakukan apa-apa. Jadi
+       nav digulirkan dulu supaya tombolnya benar-benar terlihat, baru
+       rect-nya diukur ulang. */
+    const nav = wrap.closest(".sb-nav");
+    if (nav) {
+      const rNav = nav.getBoundingClientRect();
+      if (rTombol.bottom > rNav.bottom || rTombol.top < rNav.top) {
+        nav.scrollTop += (rTombol.top - rNav.top) - 8;
+      }
+    }
+    const rTombol2 = toggle.getBoundingClientRect();
+    const w = Math.min(Math.max(rTombol2.width, 200), rInduk.width - 24);
+    /* Menu SELALU dibuka di bawah tombol, jadi di layar pendek ia keluar
+       dari bawah. Diukur lewat sweep 13 ukuran (Chrome headless, tap
+       sentuh asli): menu selalu muncul di y=550 dengan tinggi 112, jadi
+       batasnya 662px. Semua viewport yang lebih pendek dari itu -
+       termasuk 412x600 - menunya jatuh di bawah layar dan user tidak
+       melihat apa pun.
+
+    /* Tiga tingkat, berurutan dari yang paling wajar:
+       1. di bawah tombol - bentuk yang biasa dan paling diharapkan
+       2. di atas tombol - kalau di bawah tidak muat
+       3. dipatok ke tepi, dan menu-nya yg menggulir - kalau dua-duanya
+          tidak muat, misal di drawer yang sangat pendek
+
+       Versi pertama hanya tingkat 1, jadi di desktop menu Download terpotong
+       tepat di bawah "Android .apk": .sidebar punya overflow:hidden dan
+       Download adalah item terakhir di nav, jadi tidak ada ruang sama
+       sekali di bawahnya. Menempelkan tinggi maksimum di CSS (lihat
+       .dl-wrap.open .dl-menu) memastikan tingkat 3 tidak pernah
+       terpotong diam-diam. */
+    const tinggi = menu.getBoundingClientRect().height || 112;
+    const jarak = 4;
+    const ruangBawah = rInduk.height - (rTombol2.bottom - rInduk.top) - 8;
+    const ruangAtas = rTombol2.top - rInduk.top - 8;
+    let top;
+    if (tinggi <= ruangBawah) top = rTombol2.bottom - rInduk.top + jarak;
+    else if (tinggi <= ruangAtas) top = rTombol2.top - rInduk.top - tinggi - jarak;
+    else top = Math.max(8, rInduk.height - tinggi - 8);
+    menu.style.setProperty("--dl-menu-top", Math.round(top) + "px");
+    menu.style.setProperty("--dl-menu-left", Math.round(rTombol2.left - rInduk.left) + "px");
+    menu.style.setProperty("--dl-menu-w", Math.round(w) + "px");
+  };
   const tutup = () => { wrap.classList.remove("open"); toggle.setAttribute("aria-expanded", "false"); menu.hidden = true; };
-  const buka = () => { wrap.classList.add("open"); toggle.setAttribute("aria-expanded", "true"); menu.hidden = false; };
+  const buka = () => { wrap.classList.add("open"); toggle.setAttribute("aria-expanded", "true"); menu.hidden = false; /* Menu ini dulu anak Biasa dari .sb-nav (overflow-y:auto) dan item
+     terakhir di dalamnya, jadi ia ikut terpotong. Sekarang posisinya
+     diukur: lihat posisiMenu di atas. */
+    posisiMenu(); };
 
   toggle.onclick = (event) => { event.stopPropagation(); menu.hidden ? buka() : tutup(); };
   document.addEventListener("click", (event) => { if (!wrap.contains(event.target)) tutup(); });
@@ -1154,7 +1249,27 @@ function bindDropdown(root) {
     isStorage ? refreshStorageFilters() : updateSearchUI();
   });
 }
-function bindGenre(root) { if (!root) return; attach(root); const panel = $(".gf-panel", root); const storage = root.classList.contains("gf-storage"); const set = storage ? state.storageGenres : state.mainGenres; const genres = [...new Map([...GENRE_OPTIONS, ...state.genres].map((g) => [g.slug, g])).values()]; $(".gf-grid", root).innerHTML = genres.map((g) => `<button class="gf-chip ${set.has(g.slug) ? "on" : ""}" data-genre="${esc(g.slug)}">${esc(g.name)}</button>`).join(""); updateFilterLabel(root, set, "All Genre"); $$('[data-genre]', panel).forEach((b) => b.onclick = () => { set.has(b.dataset.genre) ? set.delete(b.dataset.genre) : set.add(b.dataset.genre); b.classList.toggle("on", set.has(b.dataset.genre)); updateFilterLabel(root, set, "All Genre"); storage ? refreshStorageFilters() : updateSearchUI(); }); $(`[data-gf-clear]`, root).onclick = () => { set.clear(); updateFilterLabel(root, set, "All Genre"); $$("[data-genre]", panel).forEach((b) => b.classList.remove("on")); storage ? refreshStorageFilters() : updateSearchUI(); }; }
+
+/* Batas pemilihan genre. Dua, bukan satu: satu genre sering terlalu luas
+   (Action = hampir semua), tiga sudah jadi daftar yang lebih panjang dari
+   yang perlu dibaca. Dipakai di scope pencarian utama, desktop dan mobile
+   alike - filter yang berbeda di dua tampilan akan membingungkan.
+   Scope storage TIDAK dibatasi: itu daftar lokal, bukan hasil pencarian. */
+const GENRE_PICK_LIMIT = 2;
+/* Chip yang tidak bisa dipilih karena batas tercapai harus diberi tahu,
+   bukan diam. Tanpa pesan ini panelnya kelihatan seperti rusak. */
+function genreLimitWarn(root) {
+  let el = $(".gf-warn", root);
+  if (!el) {
+    el = document.createElement("p");
+    el.className = "gf-warn";
+    el.textContent = "Maksimal " + GENRE_PICK_LIMIT + " genre. Hapus satu dulu.";
+    el.hidden = true;
+    $(".gf-panel", root).appendChild(el);
+  }
+  return el;
+}
+function bindGenre(root) { if (!root) return; attach(root); const panel = $(".gf-panel", root); const storage = root.classList.contains("gf-storage"); const set = storage ? state.storageGenres : state.mainGenres; const genres = [...new Map([...GENRE_OPTIONS, ...state.genres].map((g) => [g.slug, g])).values()]; $(".gf-grid", root).innerHTML = genres.map((g) => `<button class="gf-chip ${set.has(g.slug) ? "on" : ""}" data-genre="${esc(g.slug)}" data-name="${esc(g.name)}">${esc(g.name)}</button>`).join(""); updateFilterLabel(root, set, "All Genre"); $$('[data-genre]', panel).forEach((b) => b.onclick = () => { if (set.has(b.dataset.genre)) { set.delete(b.dataset.genre); } else { if (set.size >= GENRE_PICK_LIMIT) { genreLimitWarn(root).hidden = false; return; } set.add(b.dataset.genre); } b.classList.toggle("on", set.has(b.dataset.genre)); genreLimitWarn(root).hidden = set.size < GENRE_PICK_LIMIT; updateFilterLabel(root, set, "All Genre"); storage ? refreshStorageFilters() : updateSearchUI(); }); $(`[data-gf-clear]`, root).onclick = () => { set.clear(); updateFilterLabel(root, set, "All Genre"); $$("[data-genre]", panel).forEach((b) => b.classList.remove("on")); genreLimitWarn(root).hidden = true; storage ? refreshStorageFilters() : updateSearchUI(); }; }
 /* Pindah section: crossfade — section lama memudar, scroll, section tujuan
    muncul. Menghormati prefers-reduced-motion (langsung tanpa animasi). */
 /* Pindah section: crossfade — section lama memudar, scroll, section tujuan
@@ -1260,7 +1375,11 @@ function renderContinue() {
   const sub = $("#continueSub");
 
   if (!candidates.length) {
-    rail.innerHTML = `<div class="cw-empty"><strong>Belum ada yang bisa dilanjutkan</strong><span>Mulai tonton satu episode dari anime mana pun, lalu episode berikutnya akan otomatis muncul di sini.</span></div>`;
+    /* role="listitem" ikut di keadaan kosong, bukan hanya di kartu yang sudah
+       terisi. Tanpa ini, role="list" pada #continueRail punya anak yang bukan
+       listitem, dan itu persis yang dit auditorium Lighthouse - pada tampilan
+       yang paling sering dilihat pengguna baru. */
+    rail.innerHTML = `<div class="cw-empty" role="listitem"><strong>Belum ada yang bisa dilanjutkan</strong><span>Mulai tonton satu episode dari anime mana pun, lalu episode berikutnya akan otomatis muncul di sini.</span></div>`;
     if (sub) sub.textContent = "Belum ada tontonan berjalan";
     rail.parentElement?.querySelectorAll(".cw-nav").forEach((b) => b.toggleAttribute("disabled", true));
     return;
@@ -1455,7 +1574,199 @@ function setup() {
   $("#sbToggle").onclick = () => { const appEl = $("#app"); /* Matikan biaya paint mahal (backdrop-filter & transisi kartu)
      selama animasi collapse/expand agar frame tidak drop */ appEl.classList.add("animating"); /* Ukuran halaman dibaca SEBELUM dan SESUDAH class ditoggle — bukan snapshot saat load, supaya tetap benar walau viewport berubah. */ const sizeSebelum = pageSize(); appEl.classList.toggle("collapsed"); prefs.sidebarCollapsed = appEl.classList.contains("collapsed"); saveState(); setTimeout(() => appEl.classList.remove("animating"), SIDEBAR_ANIM_MS); const nextSize = pageSize(); if (nextSize === sizeSebelum) return; setTimeout(() => { renderStorage(); renderSearch(); }, SIDEBAR_ANIM_MS + 40); };
   if (prefs.sidebarCollapsed && !mobileQuery.matches) $("#app").classList.add("collapsed");
-  $("#globalSearch").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); search(e.currentTarget.value); } };
+/* ---------- Perintah /genre: (mobile saja) ---------- */
+/* Genre disembunyikan di mobile supaya header tidak penuh, jadi pickernya
+   tidak ada di layar itu. Perintah ini yang membukanya. Hanya di mobile:
+   di 768px ke atas picker-nya masih terlihat, dan dua jalan ke genre di
+   satu layar bukan tambahan, cuma kebocoran.
+
+   Ambangnya 767px, sama dengan dropdown.js:8 dan sama dengan aturan CSS
+   yang menyembunyikan .genre-filter. BUKAN isMobileViewport() yang 1023px
+   - itu untuk drawer dan ukuran halaman, bukan untuk filter.
+
+   "/genre:" buka panel, lalu teks setelahnya menyaring chip LANGSUNG
+   saat diketik: A -> yang berawalan A, Ac -> yang berawalan Ac. Tanpa
+   penyaringan ini perintahnya cuma dua ketukan ekstra tanpa untung.
+   Penyaringan memakai awalan, bukan "mengandung", karena orang mengetik
+   dari awal kata. */
+const genreCmdQuery = window.matchMedia("(max-width: 767px)");
+const genreCmdRoot = $(".genre-filter.gf-header");
+const GENRE_CMD_RE = /^\/(?:genre)?[:\s]*(.*)$/i;
+let genreCmdBound = false;
+let genreCmdNote = null;
+let genreCmdBackdrop = null;
+const isGenreCommand = () => genreCmdQuery.matches && GENRE_CMD_RE.test(($("#globalSearch")?.value || "").trim());
+const genreFilterText = () => {
+  if (!genreCmdQuery.matches) return null;
+  const m = GENRE_CMD_RE.exec(($("#globalSearch")?.value || "").trim());
+  return m ? m[1] : null;
+};
+/* Chip tidak dirender ulang: yang disembunyikan hanya yang tidak cocok.
+   Dua alasan. Pertama, bindGenre() memasang onclick per chip, jadi render
+   ulang mematikan handler-nya - itu persis bug "tidak bisa ganti pilihan"
+   yang sudah pernah dicatat di file ini. Kedua, menyembunyikan chip lebih
+   murah daripada membangun ulang grid setiap kali huruf diketik. */
+function filterGenreCommand(q) {
+  const grid = $(".gf-grid", genreCmdRoot);
+  if (!grid) return 0;
+  if (!genreCmdNote) {
+    genreCmdNote = document.createElement("p");
+    genreCmdNote.className = "gf-empty";
+    genreCmdNote.textContent = "Tidak ada genre yang cocok.";
+    grid.after(genreCmdNote);
+  }
+  const needle = q.trim().toLowerCase();
+  let shown = 0;
+  $$("[data-genre]", grid).forEach((b) => {
+    const name = (b.dataset.name || "").toLowerCase();
+    const cocok = !needle || name.startsWith(needle);
+    b.hidden = !cocok;
+    if (cocok) shown++;
+  });
+  genreCmdNote.hidden = shown > 0;
+  if (needle) grid.scrollTop = 0;
+  return shown;
+}
+/* Panel diletakkan persis di bawah kotak pencarian. Koordinatnya dikirim
+   lewat custom property supaya CSS tidak perlu meng tahu tata letak;
+   JS yang mengukur, karena kotak pencarian bisa menyempit sendiri
+   (.search-wrap punya width clamp). Lebar minimal 260px supaya grid
+   2 kolom tidak tergencet di layar sempit, lalu dibatasi 20px dari
+   tepi layar supaya tidak keluar viewport. */
+function positionGenreCommand() {
+  const panel = $(".gf-panel", genreCmdRoot);
+  const zone = $(".search-zone") || $("#globalSearch");
+  if (!panel || !zone) return;
+  const r = zone.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const w = Math.min(Math.max(r.width, 260), vw - 20);
+  const left = Math.min(Math.max(10, r.left), vw - w - 10);
+  const top = Math.min(r.bottom + 8, vh - 90);
+  panel.style.setProperty("--genre-cmd-left", Math.round(left) + "px");
+  panel.style.setProperty("--genre-cmd-w", Math.round(w) + "px");
+  panel.style.setProperty("--genre-cmd-top", Math.round(top) + "px");
+}
+/* Latar redup. Tanpa ini panelnya tidak terbaca sebagai lapisan di atas
+   halaman: kartu anime di belakangnya tetap terang dan terlihat bisa
+   diklik. Elemen sungguhan, bukan ::before, supaya bisa diuji dan
+   diklik - dan klik di sana otomatis menutup lewat listener klik luar
+   milik dropdown.js. */
+function genreCmdBackdropEl() {
+  if (genreCmdBackdrop) return genreCmdBackdrop;
+  genreCmdBackdrop = document.createElement("div");
+  genreCmdBackdrop.className = "genre-cmd-backdrop";
+  genreCmdBackdrop.hidden = true;
+  document.body.appendChild(genreCmdBackdrop);
+  return genreCmdBackdrop;
+}
+/* Panel bisa ditutup tanpa lewat closeGenreCommand(): Escape global dan
+   klik luar di dropdown.js keduanya menutupnya. Kalau itu tidak
+   tertangkap, html.genre-cmd dan body overflow="hidden" tertinggal -
+   halaman tetap terkunci padahal tidak ada yang terbuka. */
+function genreCmdChromeOff() {
+  document.documentElement.classList.remove("genre-cmd");
+  genreCmdRoot?.classList.remove("genre-cmd");
+  if (genreCmdBackdrop) genreCmdBackdrop.hidden = true;
+}
+function genreCmdChromeOn() {
+  document.documentElement.classList.add("genre-cmd");
+  genreCmdRoot.classList.add("genre-cmd");
+  genreCmdBackdropEl().hidden = false;
+  positionGenreCommand();
+}
+function syncGenreCommand() {
+  /* Keluar dari mobile: tutup paksa dan buang penanda, supaya tidak
+     tertinggal saat layar melebar. dropdown.js juga menutup dropdown
+     aktif di ambangnya (dropdown.js:99); ini untuk class-nya. */
+  if (!genreCmdQuery.matches) {
+    genreCmdChromeOff();
+    /* Semua chip harus kembali terlihat, atau layar desktop mewarisi
+       penyaringan yang ditinggalkan perintah mobile. */
+    filterGenreCommand("");
+  }
+}
+function openGenreCommand() {
+  const trigger = $(".gf-trigger", genreCmdRoot);
+  if (!trigger) return;
+  genreCmdChromeOn();
+  /* Lewati trigger, bukan setOpen langsung: setOpen tidak diekspor, dan
+     ini membuat panel ikut listener Escape + klik luar yang sudah ada di
+     dropdown.js - tanpa menambah listener baru. Kalau sudah terbuka,
+     trigger.click() justru MENUTUP, jadi hanya klik saat masih tertutup. */
+  if (!genreCmdRoot.classList.contains("open")) trigger.click();
+}
+function closeGenreCommand() {
+  const trigger = $(".gf-trigger", genreCmdRoot);
+  if (trigger && genreCmdRoot.classList.contains("open")) trigger.click();
+  genreCmdChromeOff();
+}
+function bindGenreCommand() {
+  const input = $("#globalSearch");
+  if (!input || !genreCmdRoot || genreCmdBound) return;
+  genreCmdBound = true;
+  input.addEventListener("input", () => {
+    const q = genreFilterText();
+    if (q === null) { closeGenreCommand(); return; }
+    openGenreCommand();
+    filterGenreCommand(q);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isGenreCommand()) { input.value = ""; input.dispatchEvent(new Event("input", { bubbles: true })); }
+    if (e.key === "Enter" && isGenreCommand()) {
+      e.preventDefault();
+      openGenreCommand();
+      filterGenreCommand(genreFilterText() || "");
+      /* Enter memilih chip pertama yang cocok - seperti palette di Slack
+         atau VS Code. Tanpa ini, orang yang tidak memakai tetikus harus
+         memindai daftar dengan Shift+Tab dulu. Kalau tidak ada yang cocok,
+         tidak terjadi apa-apa: pesan "tidak ada yang cocok" yang menjelaskan,
+         bukan diam. */
+      const pertama = $$("[data-genre]", $(".gf-grid", genreCmdRoot)).find((b) => !b.hidden);
+      if (pertama) pertama.click();
+    }
+  });
+  /* Chip genre diklik: kosongkan perintah supaya kotak cari kembali normal.
+     Delegasi di grid, bukan per chip, karena bindGenre() merender
+     ulang chip ketika daftar genre arrive - handler per chip akan mati. */
+  $(".gf-grid", genreCmdRoot)?.addEventListener("click", () => {
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    filterGenreCommand("");
+  });
+  /* dropdown.js menutup panel dari tiga arah (trigger, Escape global,
+     klik luar). Hanya arah pertama yang lewat sini, jadi dua lainnya
+     harus diamati lewat atribut hidden - kalau tidak, class dan
+     overflow="hidden" tertinggal dan halaman terkunci. */
+  const panelEl = $(".gf-panel", genreCmdRoot);
+  if (panelEl) new MutationObserver(() => { if (panelEl.hidden) genreCmdChromeOff(); })
+    .observe(panelEl, { attributes: true, attributeFilter: ["hidden"] });
+  genreCmdQuery.addEventListener("change", syncGenreCommand);
+  window.addEventListener("resize", () => { if (!genreCmdRoot.classList.contains("open")) return; positionGenreCommand(); });
+  syncGenreCommand();
+}
+/* #confirmRoot (dan #gooMenu) ditulis DI DALAM #watchOverlay di
+   index.html, padahal #watchOverlay ber-display:none sampai ada video
+   dibuka. Akibatnya setiap overlay yang dibuat lewat #confirmRoot -
+   termasuk pop-up unduhan SmartScreen dan Play Protect - punya tiga
+   gejala sekaligus: 0x0 (tak ada layout di subtree tersembunyi),
+   getAnimations() kosong (animasi tak pernah jalan), dan opacity macet
+   di 0 karena fadeIn dimulai dari opacity:0.
+
+   Itu juga sebab laporan pertamamu tepat: pop-up unduhan "muncul
+   setelah melihat detail anime" - membuka detail menampilkan
+   #watchOverlay, dan baru sesudah itu #confirmRoot ikut terlihat.
+
+   Dipindahkan ke <body> supaya overlay tidak bergantung pada modal mana
+   yang kebetulan terbuka. Satu baris, dan berlaku untuk semua overlay
+   yang lewat #confirmRoot - bukan hanya unduhan. */
+for (const id of ["confirmRoot", "gooMenu"]) {
+  const el = document.getElementById(id);
+  if (el && el.parentElement !== document.body) document.body.appendChild(el);
+}
+bindGenreCommand();
+
+$("#globalSearch").onkeydown = (e) => { if (e.key === "Enter") { if (isGenreCommand()) return; e.preventDefault(); search(e.currentTarget.value); } };
   $("#globalSearch").oninput = () => updateSearchUI();
   $("#searchMorphBtn").onclick = () => { if (state.searchQuery || state.searchResults.length) clearAllSearch(); else search($("#globalSearch").value); };
   $("#clearSearchBtn").onclick = () => clearAllSearch();

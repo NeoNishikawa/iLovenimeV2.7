@@ -160,3 +160,143 @@ test("gambar yang gagal menampilkan placeholder, bukan kotak kosong senyap", () 
   assert.match(css, /\.img-failed img\{display:none\}/);
   assert.match(css, /\.cw-art\.img-failed::after\{/);
 });
+
+test("menu Download mengambang, bukan anak nav yang bisa memotongnya", () => {
+  /* Laporan Neo di perangkat: menu tidak terlihat sama sekali.
+     Bentuk lamanya placing menu sebagai anak biasa .sb-nav - yang
+     overflow-y:auto - dan menu itu item terakhir di dalamnya. Kalau nav
+     penuh, menunya jatuh di luar area pandang: handler-nya jalan, .open
+     aktif, tinggi 112px, tapi user tidak melihat apa pun.
+
+     Sekarang .dl-wrap.open .dl-menu jadi position:fixed, sehingga keluar
+     dari flow nav dan tidak pernah terpotong. */
+  assert.match(layoutCss, /\.dl-wrap\.open \.dl-menu\{[\s\S]{0,600}?position:fixed/,
+    "saat terbuka, menu harus position:fixed agar tidak ikut terpotong nav");
+  assert.match(layoutCss, /\.dl-wrap\.open \.dl-menu\{[\s\S]{0,600}?top:var\(--dl-menu-top/,
+    "posisi harus datang dari custom property yang diisi JS");
+  assert.match(layoutCss, /\.dl-wrap\.open \.dl-menu\{[\s\S]{0,600}?z-index:200/,
+    "harus di atas sidebar (z-index:120), kalau tidak tertimpa drawer");
+});
+
+test("posisi diukur relatif ke sidebar, bukan ke layar", () => {
+  /* .sidebar punya transform (translateX untuk drawer), jadi ia menjadi
+     containing block position:fixed di dalamnya. Kalau koordinatnya
+     diukur terhadap viewport, panel meleset sebesar pergeseran drawer -
+     pola yang sama sudah memunculkan bug /genre dengan backdrop-filter
+     pada .header. */
+  assert.match(kode, /const posisiMenu = \(\) =>/);
+  assert.match(kode, /wrap\.closest\("\.sidebar"\) \|\| document\.body/,
+    "harus mengukur relatif ke sidebar");
+  assert.match(kode, /rTombol2\.bottom - rInduk\.top /,
+    "vertikal diukur dari batas bawah tombol relatif ke sidebar");
+  assert.match(kode, /rTombol2\.left - rInduk\.left/,
+    "horizontal diukur dari tombol relatif ke sidebar");
+  assert.match(kode, /--dl-menu-top[\s\S]{0,200}?--dl-menu-left[\s\S]{0,200}?--dl-menu-w/,
+    "ketiganya harus dikirim");
+  assert.doesNotMatch(kode, /scrollIntoView/,
+    "scrollIntoView tidak lagi dipakai: ia hanya solusi atas masalah yang salah");
+});
+
+test("aset yang diubah ikut naikkan cache-buster", () => {
+  assert.match(indexHtml, /\/css\/layout\.css\?v=2\.8\.0/);
+  assert.match(indexHtml, /\/js\/reference-app\.js\?v=2\.30\.0/);
+});
+
+
+test("nav digulirkan ke tombol sebelum posisi diukur", () => {
+  /* Di layar sangat pendek .sb-nav meluap, dan tombol Download berakhir di
+     tempat yang persis sama dengan tombol "Delete Data" yang ada DI LUAR
+     nav. Di 320x568, elementFromPoint di titik tombol mengembalikan
+     "nav-item danger holdable" - artinya tap mendarat ke Delete Data,
+     yang holdable() membuat tap singkat tidak melakukan apa-apa.
+
+    Jadi nav digulirkan dulu supaya tombolnya benar-benar ada di area
+     pandang, baru rect-nya diukur ulang. */
+  assert.match(kode, /const nav = wrap\.closest\("\.sb-nav"\)/);
+  assert.match(kode, /if \(rTombol\.bottom > rNav\.bottom \|\| rTombol\.top < rNav\.top\)/,
+    "harus mengecek apakah tombolnya di luar area nav");
+  assert.match(kode, /nav\.scrollTop \+= \(rTombol\.top - rNav\.top\) - 8/,
+    "nav harus digulir ke tombol");
+  assert.match(kode, /const rTombol2 = toggle\.getBoundingClientRect\(\)/,
+    "rect harus diukur ULANG setelah menggulir");
+});
+
+test("nav punya min-height:0 supaya benar-benar bisa menyusut", () => {
+  /* Flex child tanpa min-height:0 tidak mau menyusut, sehingga .sb-nav
+     meluap dan isinya menimpa footer. */
+  assert.match(layoutCss, /\.sb-nav\{[^}]*min-height:0/,
+    ".sb-nav wajib min-height:0 supaya bisa menyusut dan menggulir");
+});
+test("menu tiga tingkat: di bawah, ke atas, lalu dipatok + menggulir", () => {
+  /* Neo: "tampilan dropdownnya tertutup". Di desktop menu Download
+     terpotong tepat di bawah "Android .apk" - .sidebar punya overflow:hidden
+     dan Download adalah item terakhir di nav, jadi tidak ada ruang di
+     bawahnya sama sekali.
+
+     Tiga tingkat, berurutan dari yang paling wajar:
+     1. di bawah tombol  (bentuk yang biasa)
+     2. di atas tombol   (kalau di bawah tidak muat)
+     3. dipatok ke tepi  + max-height di CSS (kalau dua-duanya tidak muat) */
+  assert.match(kode, /const ruangBawah = rInduk\.height - \(rTombol2\.bottom - rInduk\.top\) - 8/,
+    "ruang di bawah harus dihitung");
+  assert.match(kode, /const ruangAtas = rTombol2\.top - rInduk\.top - 8/,
+    "ruang di atas harus dihitung");
+  assert.match(kode, /if \(tinggi <= ruangBawah\) top = rTombol2\.bottom - rInduk\.top \+ jarak;/,
+    "tingkat 1: di bawah tombol");
+  assert.match(kode, /else if \(tinggi <= ruangAtas\) top = rTombol2\.top - rInduk\.top - tinggi - jarak;/,
+    "tingkat 2: balik ke atas");
+  assert.match(kode, /else top = Math\.max\(8, rInduk\.height - tinggi - 8\);/,
+    "tingkat 3: dipatok ke tepi, jangan keluar layar");
+  assert.match(layoutCss, /\.dl-wrap\.open \.dl-menu\{[\s\S]{0,600}?max-height:var\(--dl-menu-max/,
+    "tingkat 3 butuh max-height + overflow supaya tidak terpotong diam-diam");
+  assert.match(layoutCss, /\.dl-wrap\.open \.dl-menu\{[\s\S]{0,600}?overflow-y:auto/);
+});
+
+test("koordinat diukur dari basis yang BENAR, bukan selalu dari sidebar", () => {
+  /* Ini bug desktop. .sidebar HANYA jadi containing block position:fixed
+     kalau punya transform/filter/backdrop-filter/will-change/contain.
+     Di mobile ia punya transform (translateX untuk drawer) - jadi
+     koordinat relatif ke sidebar benar. Di desktop TIDAK, jadi
+     position:fixed dihitung dari viewport, dan koordinat yang diukur dari
+     sidebar meleset sebesar tinggi sidebar (65px).
+
+     Diukur di 1920x1080: toggle bot=611, menu top=550 - menu muncul
+     23px DI ATAS tombolnya. Setelah diperbaiki: menu top=615.
+
+     Kelas bug yang sama sudah menewaskan dua kali: backdrop-filter
+     pada .header (perintah /genre) dan transform pada .sidebar. */
+  assert.match(kode, /const g = getComputedStyle\(induk\)/,
+    "harus membaca style sidebar");
+  assert.match(kode, /const jadiBasis = g\.transform !== "none" \|\| g\.filter !== "none" \|\| g\.backdropFilter !== "none"/,
+    "harus mendeteksi apakah sidebar benar-benar containing block");
+  assert.match(kode, /g\.willChange !== "auto" \|\| g\.contain !== "none" \|\| g\.perspective !== "none"/,
+    "semua properti yang membuat containing block harus diperiksa");
+  assert.match(kode, /const basis = jadiBasis \? induk : document\.documentElement;/,
+    "kalau sidebar bukan containing block, ukur dari documentElement");
+  assert.match(kode, /const rInduk = basis\.getBoundingClientRect\(\);/,
+    "semua pengukuran harus dari basis, bukan dari induk");
+});
+
+test("#confirmRoot dan #gooMenu dikeluarkan dari #watchOverlay", () => {
+  /* INI akar bug yang dilaporkan Neo: "pop-up untuk unduhnya tidak
+     keluar". Laporan pertamanya benar - dan tujuh round aku salah
+
+     #confirmRoot ditulis DI DALAM #watchOverlay di index.html, padahal
+     #watchOverlay ber-display:none sampai ada video dibuka. Akibatnya
+     setiap overlay yang lewat #confirmRoot punya tiga gejala sekaligus:
+     0x0 (tak ada layout di subtree tersembunyi), getAnimations() kosong
+     (animasi tak pernah jalan), dan opacity macet di 0 karena fadeIn
+     dimulai dari opacity:0.
+
+     Gejala yang paling menipu: "pop-upnya muncul setelah melihat detail
+     anime" - membuka detail menampilkan #watchOverlay, barulah
+     #confirmRoot ikut terlihat.
+
+     Ukuran DOM yang diukur lewat Chrome headless + tap sentuh asli:
+     SEBELUM  opacity 0, 0x0, rantai induk berisi #watchOverlay
+     SESUDAH  opacity 1, 412x915, rantai induk BODY > #confirmRoot */
+  assert.match(kode, /for \(const id of \["confirmRoot", "gooMenu"\]\)/,
+    "keduanya harus dipindahkan");
+  assert.match(kode, /if \(el && el\.parentElement !== document\.body\) document\.body\.appendChild\(el\);/,
+    "dipindahkan ke body, dan hanya kalau belum di sana");
+});

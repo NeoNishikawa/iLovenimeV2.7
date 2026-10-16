@@ -28,6 +28,9 @@
     "electron": "^36.3.2",
     "electron-builder": "^26.0.12"
   },
+  "overrides": {
+    "proxy-addr": "^2.0.8"
+  },
   "dependencies": {
     "animejs": "^4.5.0",
     "axios": "^1.7.9",

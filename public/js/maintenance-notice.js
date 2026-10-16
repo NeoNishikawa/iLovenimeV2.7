@@ -64,47 +64,61 @@ export function nextNoticeDate(now = Date.now()) {
 export function buildNoticeHtml(esc = (value) => String(value)) {
   const nextDate = nextNoticeDate();
   return `
-    <div class="maintenance-badge"><svg class="ico"><use href="#i-info"/></svg></div>
+    <div class="maintenance-badge"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg></div>
     <h3 id="maintenanceNoticeTitle" class="nb-title">Pemberitahuan Pemeliharaan</h3>
-    <p class="nb-text">Pemeliharaan server rutin setiap <b>14 hari</b> agar katalog, mirror, dan kecepatan pencarian tetap stabil. <b>Mohon maaf</b> atas ketidaknyamanannya — data anime kamu di perangkat ini <b>tidak akan hilang</b>.</p>
-    <span class="nb-next">Pemberitahuan berikutnya: <b>${esc(nextDate)}</b></span>
+    <p class="nb-text">Pemeliharaan server rutin setiap <b>14 hari</b> agar katalog, mirror, dan kecepatan pencarian tetap stabil. <b>Mohon maaf</b> atas ketidaknyamanannya &mdash; data anime kamu di perangkat ini <b>tidak akan hilang</b>.</p>
+    <span class="nb-next">Pemberitahuan berikutnya: <b id="noticeNext">${esc(nextDate)}</b></span>
     <button class="btn btn-ghost nb-close" data-notice-ok>Mengerti</button>`;
+}
+
+/* Pita yang dipakai halaman ini datang dari index.html, bukan dari sini.
+   Fungsi ini masih bisa membangun sendiri karena dua alasan: halamannya
+   tidak pernah menyertakan markup itu, dan test memanggilnya langsung.
+   Tapi jalur wajar di produksi adalah memakai yang sudah ada.
+
+   <div>, bukan <aside>: <aside> berarti role=complementary, dan Lighthouse
+   menandai role="status" di atasnya sebagai role yang tidak sesuai elemennya. */
+function buatPita(root) {
+  const banner = document.createElement("div");
+  banner.className = "notice-banner";
+  banner.id = "noticeBanner";
+  banner.setAttribute("role", "status");
+  banner.setAttribute("aria-live", "polite");
+  banner.setAttribute("aria-labelledby", "maintenanceNoticeTitle");
+  banner.innerHTML = buildNoticeHtml();
+  root.appendChild(banner);
+  return banner;
 }
 
 export function mountMaintenanceNotice(root = document.body, options = {}) {
   if (!root) return null;
   const storage = options.storage || (() => { try { return window.localStorage; } catch (_) { return null; } })();
   const now = options.now || Date.now;
-  if (!shouldShowNotice(storage, now())) return null;
+  const show = shouldShowNotice(storage, now());
 
-  const esc = options.esc || ((value) => String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])));
-  /* role="status", BUKAN dialog: pita ini tidak boleh mengambil alih
-     interaksi halaman. Ditambahkan ke <body> supaya position:fixed-nya
-     benar-benar menempel ke viewport, bukan ke kontainer yang di-transform. */
-  const banner = document.createElement("aside");
-  banner.className = "notice-banner";
-  banner.setAttribute("role", "status");
-  banner.setAttribute("aria-live", "polite");
-  banner.setAttribute("aria-labelledby", "maintenanceNoticeTitle");
-  banner.innerHTML = buildNoticeHtml(esc);
-  root.appendChild(banner);
-  document.body.classList.add("notice-open");
+  /* Sumber kebenaran terakhir tetap modul ini: script di <head> hanya
+     menebak lebih dulu supaya tidak ada pergeseran. Kalau keduanya
+     berbeda, state modul yang menang - ruang kosong di atas lebih buruk
+     daripada pita yang telat. */
+  const html = (root.ownerDocument || document).documentElement;
+  if (html) html.classList.toggle("notice-open", show);
+  if (!show) return null;
 
-  /* Tinggi banner DINAMIS: di layar sempit teks membungkus dan pita bisa
-     lebih tinggi dari 64px. Padding body mengikuti tinggi nyata, dan
-     diukur ulang tiap resize, jadi konten tidak pernah tertutup pita. */
-  const pasangTinggi = () => document.body.style.setProperty("--notice-h", `${banner.offsetHeight}px`);
-  pasangTinggi();
-  window.addEventListener("resize", pasangTinggi);
+  const banner = root.querySelector("#noticeBanner") || buatPita(root);
+
+  /* Tanggal hanya bisa dihitung di browser. Elemennya sudah ada sejak render
+     pertama dengan teks cadangan, jadi mengisinya cuma menukar teks di dalam
+     baris yang white-space:nowrap - tinggi pitanya tidak berubah. */
+  const nextDate = banner.querySelector("#noticeNext");
+  if (nextDate) nextDate.textContent = nextNoticeDate(now());
 
   const close = () => {
     markNoticeShown(storage, now());
     banner.classList.add("is-closing");
-    document.body.classList.remove("notice-open");
-    document.body.style.removeProperty("--notice-h");
-    window.removeEventListener("resize", pasangTinggi);
+    if (html) html.classList.remove("notice-open");
     setTimeout(() => banner.remove(), 220);
   };
-  banner.querySelector("[data-notice-ok]").onclick = close;
+  const ok = banner.querySelector("[data-notice-ok]");
+  if (ok) ok.onclick = close;
   return banner;
 }

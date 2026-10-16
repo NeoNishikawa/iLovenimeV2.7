@@ -146,7 +146,10 @@ test("isi banner menampilkan tanggal yang dihitung dari waktu pemanggilan", () =
   const html = mod.buildNoticeHtml();
   const sesudah = Date.now();
 
-  const ditemukan = (html.match(/Pemberitahuan berikutnya: <b>([^<]+)<\/b>/) || [])[1];
+  /* <b> sekarang bringer id="noticeNext" supaya halaman bisa mengisinya
+     nanti, jadi polanya menerima atribut apa pun di dalam tag. Yang dijaga
+     tetap sama: ada tepat satu tanggal di antara <b> dan </b>. */
+  const ditemukan = (html.match(/Pemberitahuan berikutnya: <b[^>]*>([^<]+)<\/b>/) || [])[1];
   assert.ok(ditemukan, "tanggal harus ada di dalam banner");
   assert.ok(ditemukan === format(sebelum + 14 * HARI) || ditemukan === format(sesudah + 14 * HARI),
     "tanggal di banner harus = waktu pemanggilan + 14 hari. Ditemukan: " + ditemukan);

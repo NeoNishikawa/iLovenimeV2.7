@@ -105,7 +105,11 @@
   padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;
   background:var(--gold-soft);color:var(--gold);border:1px solid rgba(255,215,0,.32);
   animation:chipIn .3s var(--ease-spring) both;
+  display:inline-flex;align-items:center;gap:5px;cursor:pointer;
+  font-family:inherit;line-height:1.4;
 }
+.sh-tag:hover{border-color:var(--gold);color:var(--gold)}
+.sh-tag .ico{width:10px;height:10px;opacity:.7}
 .sh-cta{font-size:11px;color:var(--text-2);white-space:nowrap}
 .sh-cta b{color:var(--text);font-weight:700}
 

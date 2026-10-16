@@ -82,7 +82,7 @@
 .sb-user-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-user-sub{font-size:11px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 12px 12px}
+.sb-nav{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;padding:4px 12px 12px;overscroll-behavior:contain}
 .sb-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2);padding:14px 10px 8px;white-space:nowrap;transition:opacity .2s ease-in-out}
 .nav-item{
   position:relative;width:100%;display:flex;align-items:center;gap:12px;
@@ -103,9 +103,34 @@
 .dl-wrap{position:relative}
 .dl-caret{margin-left:auto;width:14px;height:14px;transition:transform .2s ease-in-out}
 .dl-wrap.open .dl-caret{transform:rotate(180deg)}
+/* Menu ini dulu anak Biasa dari .sb-nav, jadi ia TERPOTONG begitu nav
+   penuh: .sb-nav punya overflow-y:auto, dan menu ini item terakhir di
+   dalamnya. Di drawer yang tertutup pun ia ikut tersembunyi, karena
+   sidebar digeser translateX(-100%).
+
+   Sekarang, saat terbuka, ia jadi position:fixed. Tapi containing block
+   nearest bukan viewport - .sidebar punya transform, jadi panel ikut
+   sidebar (dan ikut bergerak bersama drawer). Koordinatnya dikirim lewat
+   --dl-menu-* yang diukur JS relatif ke sidebar, bukan ke layar: begitu
+   drawer tertutup, panel ikut tersembunyi, dan begitu terbuka, panel
+   melayang tepat di bawah tombol tanpa pernah bergantung pada scroll. */
 .dl-menu{
   margin:4px 0 6px;padding:5px;border-radius:11px;
   background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);
+}
+.dl-wrap.open .dl-menu{
+  position:fixed;
+  /* Tingkat 3 posisiMenu: kalau tidak muat di atas maupun di bawah,
+     menu dipatok ke tepi dan DIGULIR sendiri. Tanpa max-height di sini
+     ia terpotong diam-diam - persis yang terjadi di desktop, di mana
+     Download adalah item terakhir nav dan .sidebar overflow:hidden. */
+  max-height:var(--dl-menu-max,60vh);
+  overflow-y:auto;
+  top:var(--dl-menu-top,auto);
+  left:var(--dl-menu-left,auto);
+  width:var(--dl-menu-w,auto);
+  margin:0;
+  z-index:200;
 }
 .dl-item{
   width:100%;display:flex;align-items:center;gap:10px;

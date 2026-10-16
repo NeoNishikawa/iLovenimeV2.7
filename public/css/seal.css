@@ -94,23 +94,52 @@
 
 /* ---------- Banner pemberitahuan pemeliharaan (non-blocking) ----------
    Pengganti modal layar penuh yang dulu mengunci halaman (temuan CRITICAL
-   audit UX 5 Okt 2026). Pita ramping di atas viewport: pengunjung tetap
-   bisa menjelajah dan menonton. Halaman didorong turun lewat class
-   "notice-open" di body, bukan overlay. z-index 340: di atas dropdown,
-   di bawah toast (600) dan overlay watch (700). */
+   audit UX 5 Okt 2026). Pita ramping di atas halaman: pengunjung tetap
+   bisa menjelajah dan menonton, dan tidak ada yang mengunci interaksi.
+
+   Markup pita ada di index.html, bukan disuntik JS, dan TIDAK memakai
+   position:fixed. Itu keputusan yang dibayar dengan pengukuran.
+
+   Versi sebelumnya mem-fix pita lalu memesan ruang dengan padding sebesar
+   offsetHeight. Ruang itu harus diperkirakan, dan cepat berubah: 107px
+   di 800px, 185px di 390px, 224px di 320px. Satu angka konstan tidak
+   mungkin benar untuk semua lebar - kalau kurang, pita menutupi konten;
+   kalau kelebihan, ada lubang kosong.
+
+   Kalau pita memakai aliran biasa, ruangnya adalah dirinya sendiri. Tidak
+   ada yang perlu diperkirakan, tidak bisa kurang, tidak bisa kelebihan,
+   dan tidak ada yang bergeser karena elemennya sudah ada sejak render
+   pertama. Angka CLS sebelum perubahan ini: 0,719 (Lighthouse, 13 Okt 2026).
+
+   z-index 340 tetap: di atas dropdown, di bawah toast (600) dan overlay
+   watch (700). */
 .notice-banner{
-  position:fixed;top:0;left:0;right:0;z-index:340;
-  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-  min-height:64px;padding:10px 20px;
+  display:none;
+  position:relative;z-index:340;
+  align-items:center;gap:12px;flex-wrap:wrap;row-gap:6px;
+  padding:10px 20px;
   background:#1f2933;color:#fff;border-bottom:1px solid rgba(255,215,0,.3);
   box-shadow:0 6px 18px rgba(0,0,0,.35);
 }
-body.notice-open{padding-top:var(--notice-h,64px)}
+.notice-open .notice-banner{display:flex}
 .notice-banner .maintenance-badge{width:30px;height:30px;flex:0 0 30px;border-radius:9px;display:grid;place-items:center;background:rgba(255,215,0,.14);color:var(--gold)}
 .notice-banner .maintenance-badge .ico{width:16px;height:16px;fill:currentColor;stroke:none}
-.notice-banner .nb-title{margin:0;font-size:12.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
-.notice-banner .nb-text{margin:0;font-size:12px;line-height:1.5;color:rgba(255,255,255,.86);flex:1 1 320px}
-.notice-banner .nb-next{font-size:11px;color:rgba(255,255,255,.66);white-space:nowrap}
+/* min-width:0 itu kunci. Tanpa itu, flex item teks menolak menyusut dan
+   memaksa pita pecah jadi baris-baris yang tak terduga. Dengan min-width:0,
+   teks menyusut dan membungkus di dalam dirinya sendiri. */
+.notice-banner .nb-title{margin:0;font-size:12.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap;flex:0 0 auto}
+.notice-banner .nb-text{margin:0;font-size:12px;line-height:1.5;color:rgba(255,255,255,.86);flex:1 1 240px;min-width:0}
+.notice-banner .nb-next{font-size:11px;color:rgba(255,255,255,.66);white-space:nowrap;flex:0 0 auto}
 .notice-banner .nb-close{flex:0 0 auto}
 .notice-banner.is-closing{opacity:0;transform:translateY(-12px);transition:opacity .22s ease,transform .22s ease}
-@media (max-width:640px){.notice-banner .nb-next{display:none}}
+
+/* Di bawah 900px tanggal "berikutnya" tidak lagi muat di baris yang sama
+   dengan judul, dan teks utama turun ke baris penuh sendiri. */
+@media (max-width:900px){
+  .notice-banner .nb-text{flex:1 1 100%;order:3}
+}
+@media (max-width:640px){
+  .notice-banner{padding:10px 14px}
+  .notice-banner .nb-next{display:none}
+  .notice-banner .nb-title{white-space:normal}
+}

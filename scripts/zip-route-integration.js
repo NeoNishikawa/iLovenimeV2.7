@@ -54,9 +54,29 @@ animasu.listen(PORT, "127.0.0.1", async () => {
       assert.equal(streams.body.data[0].url, "https://mirror.example/animasu");
 
       const health = await json(`${base}/api/health`);
-      assert.deepEqual(health.body.sources.map((source) => source.id), ["animasu", "yaoi"]);
+      /* Bentuk ini berubah 17 Oktober 2026. `sources` dulu hanya
+         `animasu` + `yaoi`. Sekarang health melaporkan SETIAP sumber yang
+         dikonfigurasi - termasuk `samehadaku` - supaya status mirror
+         terlihat terpisah dari sumber utama. Melaporkan hanya yang
+         kebetulan aktif membuat supplementing yang mati tidak pernah
+         kelihatan.
+
+         `MIRROR_ONLY_SOURCES` adalah konstanta modul, jadi samehadaku
+         memang terkonfigurasi di mode integrasi ini meski tidak dipakai
+         di jalan request. Melaporkannya di sini adalah perilaku yang
+         benar, jadi assertion yang usang - bukan kodenya. */
+      assert.deepEqual(health.body.sources.map((source) => source.id), ["yaoi", "animasu", "samehadaku"]);
+      for (const source of health.body.sources) {
+        assert.ok("status" in source, `${source.id} harus melaporkan status sendiri`);
+        assert.ok("lastAttemptAt" in source && "lastError" in source,
+          `${source.id} harus punya jejak waktu dan error, kalau tidak, mati diam-diam tidak akan terlihat`);
+      }
+      /* Mirror harus punya ember terpisah: status utama tidak boleh ikut
+         berubah karena mirror-nya gagal. */
+      assert.notEqual(health.body.sourceId, "samehadaku",
+        "status publik tetap milik sumber utama, bukan mirror");
       assert.equal(requests.some((path) => path.includes("blocked")), false);
-      console.log(JSON.stringify({ mode: "animasu + yaoi only", daily: "ok", search: "ok", detail: "ok", streams: "ok", sourceIsolation: "ok", requestCount: requests.length }, null, 2));
+      console.log(JSON.stringify({ mode: "animasu + yaoi (samehadaku terkonfigurasi, tidak dipakai)", daily: "ok", search: "ok", detail: "ok", streams: "ok", sourceIsolation: "ok", requestCount: requests.length }, null, 2));
     } finally {
       application.close(() => animasu.close());
     }

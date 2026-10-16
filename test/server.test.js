@@ -341,6 +341,12 @@ test("404 saat fallback path tidak dianggap source mati", () => {
    lolos); setelah TRUST_PROXY=1, 20 IP berbeda = 20x200.
    Default sengaja mati supaya server yang dibuka langsung ke internet
    tidak bisa dilewati rate limit dengan memalsukan X-Forwarded-For.
+
+   Nilai yang diaktifkan adalah ANGKA 1, bukan `true`. `true` berarti
+   percaya seluruh rantai proxy, jadi pengunjung bisa mengirim
+   `X-Forwarded-For` sendiri dan memindahkan kuotanya ke IP mana saja -
+   spoofing rate limit sekaligus menghilangkan IP asli dari log. Angka 1
+   mempercayai tepat satu hop, yaitu proxy Railway yang sebenarnya.
    ------------------------------------------------------------------ */
 test("trust proxy membuat IP berbeda punya kuota terpisah, default tetap mati", async () => {
   const serverPath = require.resolve("../server");
@@ -360,7 +366,10 @@ test("trust proxy membuat IP berbeda punya kuota terpisah, default tetap mati", 
 
     process.env.TRUST_PROXY = "1";
     const on = loadApp();
-    assert.equal(on.get("trust proxy"), true, "TRUST_PROXY=1 wajib mengaktifkan trust proxy");
+    assert.equal(on.get("trust proxy"), 1,
+      "TRUST_PROXY=1 wajib mengaktifkan trust proxy - sebagai ANGKA 1, bukan true");
+    assert.notEqual(on.get("trust proxy"), true,
+      "`true` mempercayai semua proxy: pengunjung bisa memalsukan X-Forwarded-For dan memindahkan kuota rate limit miliknya ke IP lain");
   } finally {
     if (savedFlag === undefined) delete process.env.TRUST_PROXY; else process.env.TRUST_PROXY = savedFlag;
     require.cache[serverPath] = savedServer;

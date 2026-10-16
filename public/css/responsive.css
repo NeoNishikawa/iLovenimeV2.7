@@ -60,15 +60,18 @@
   .app.collapsed .sb-bottom button::after{display:none}
   .sb-user{cursor:default}
 
-  /* Header ringkas: brand + hamburger + theme; filter pindah ke bawah */
-  .header{gap:10px;padding:12px 16px}
-  .header .genre-filter,
-  .header .character-filter,
-  .header .compact-filters{
-    order:5;width:100%;
-  }
-  .header .compact-filters{display:flex;flex-wrap:wrap}
-  .search-wrap{flex:1 1 100%;order:0;max-width:none}
+  /* Header ringkas. Filter TIDAK lagi dipaksa turun ke baris sendiri yang
+     selebar layar: di 800px semua elemen muat satu baris (42+220+130+86+86+90+32
+     = 712px), tapi aturan lama membuat header jadi 177px dan tiga baris dengan
+     sekitar 1600px ruang kosong. Sekarang mereka sebaris, dan header punya
+     flex-wrap supaya membungkus sendiri hanya kalau benar-benar tidak muat.
+
+     Regangan menyasar .search-zone, bukan .search-wrap. .search-zone yang jadi
+     flex item header; .search-wrap cuma anaknya, jadi menataruh flex di sana
+     tidak pernah Lumberges apa pun. */
+  .header{gap:10px;padding:12px 16px;flex-wrap:wrap}
+  .search-zone{flex:1 1 auto;order:0}
+  .search-wrap{flex:1 1 auto;max-width:none}
 
   .card-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
   .profile-card{gap:16px}
@@ -79,10 +82,14 @@
 @media (max-width:767px){
   /* backdrop-filter menjadikan header containing-block bagi position:fixed;
      dimatikan agar bottom sheet menghitung posisi dari viewport. */
-  .header{padding:10px 12px;gap:8px;backdrop-filter:none}
+  .header{padding:10px 12px;gap:8px;backdrop-filter:none;flex-wrap:nowrap}
   .header .genre-filter,
   .header .character-filter,
   .header .compact-filters{display:none}
+  /* Aturan perintah /genre sengaja TIDAK di sini. Semua aturan
+     html.genre-cmd ada di akhir file, di luar media query - karena
+     gerbangnya sudah menentukan layar (JS, 767px), jadi media query
+     hanya akan menggandakan keputusan yang sama. */
   .gf-trigger,.header .btn,.filter-search-btn{min-height:42px}
   .search-wrap{height:42px}
   .hamburger{width:40px;height:40px}
@@ -191,3 +198,67 @@
   .ep-item{min-height:44px}
   .sb-toggle{width:34px;height:34px}
 }
+/* ==========================================================================
+   Perintah /genre - dropdown mengambang, bukan bottom sheet
+   Ditambahkan 15 Oktober 2026 setelah dilihat di perangkat.
+
+   Versi pertama memakai bottom sheet yang sudah ada (position:fixed;
+   bottom:0 dari blok 1023px). Di HP hasilnya salah: panelnya pendek,
+   melekat di dasar layar, dan kartu anime di belakangnya tetap terang
+   serta terlihat bisa diklik. Tidak terbaca sebagai lapisan di atas
+   halaman - lebih terlihat seperti kotak nyasar di bawah konten.
+
+   Sekarang posisinya melayang tepat di bawah kotak pencarian, dengan
+   latar redup. Lebar dan koordinatnya datang dari --genre-cmd-*, diisi
+   JS yang mengukur kotak pencarian. Aturan ini di luar media query
+   dengan sengaja: class html.genre-cmd hanya pernah ada di <=767px
+   (dicek JS), jadi media query di sini hanya mengulang keputusan yang
+   sama - dan dengan begitu aturannya bisa diperiksa di jendela lebar
+   tanpa harus berpindah perangkat.
+   ========================================================================== */
+/* WAJIB: backdrop-filter pada .header menjadikannya containing block bagi
+   position:fixed di dalam header - artinya panel diukur relatif ke header,
+   bukan ke viewport, dan koordinat dari JS jadi meleset sebesar tinggi
+   header. Di mobile aturan ini sudah dimatikan, tapi itu rapuh: begitu
+   dihidupkan lagi, panelnya bergeser tanpa error dan tanpa yang/sbinasa.
+   Dimatikan lagi selama perintah aktif supaya containing block selalu
+   viewport. */
+html.genre-cmd .header{backdrop-filter:none}
+html.genre-cmd .header .genre-filter{display:block;margin-left:0 !important}
+html.genre-cmd .header .genre-filter .gf-trigger{display:none}
+html.genre-cmd .gf-panel{
+  position:fixed !important;
+  top:var(--genre-cmd-top,20vh) !important;
+  left:var(--genre-cmd-left,10px) !important;
+  right:auto !important;bottom:auto !important;
+  width:var(--genre-cmd-w,calc(100vw - 20px)) !important;
+  max-width:calc(100vw - 20px) !important;
+  max-height:min(56dvh,380px);
+  border-radius:14px;
+  padding:12px;
+  border-left:1px solid var(--border);
+  border-right:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  transform-origin:top left;
+  animation:gfPop .2s var(--ease-out) !important;
+  z-index:420;
+}
+html.genre-cmd .gf-head{margin-bottom:10px;padding-bottom:10px}
+/* Grid 2 kolom. 54 genre dalam 3 kolom jadi 9 baris yang harus di-scroll
+   jauh; dua kolom memotong tinggi panel jadi sekitar setengahnya. */
+html.genre-cmd .gf-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  max-height:none !important;
+}
+/* z-index 35, bukan 410. Panel genre TIDAK bisa keluar dari stacking
+   context .header (z-index:40), jadi z-index:420 di panel itu sebenarnya
+   hanya berarti "40 di root". Backdrop di 410 menutupinya: panel masih
+   terlihat - backdrop cuma 55% hitam - tapi tidak bisa diklik, karena
+   semua klik jatuh ke backdrop yang lalu menutup panel.
+   Jadi urutannya: backdrop 35 < header 40 < panel (di dalam header). */
+.genre-cmd-backdrop{
+  position:fixed;inset:0;z-index:35;
+  background:rgba(0,0,0,.55);
+  animation:fadeIn .18s var(--ease-out);
+}
+.genre-cmd-backdrop[hidden]{display:none}

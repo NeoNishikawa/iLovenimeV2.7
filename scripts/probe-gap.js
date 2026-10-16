@@ -31,7 +31,7 @@ function normalizeTitleKey(value) {
   const base = String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   if (!base) return "";
   return base
-    .replace(/\bs(\d{1,2})\b/g, "season $1")g
+    .replace(/\bs(\d{1,2})\b/g, "season $1")
     .replace(/\b(\d)\s*(?:st|nd|rd|th)\s*season\b/g, "season $1")
     .replace(NOISE, " ")
     .replace(/\s+/g, " ")

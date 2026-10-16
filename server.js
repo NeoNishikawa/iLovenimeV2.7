@@ -251,7 +251,7 @@ function todayLabel(date = new Date()) {
 
 async function dailyAnime() {
   const day = todayKey();
-  const { result } = await sourceRequest("/jadwal/", { headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: (status) => status >= 200 && status < 300 });
+  const { result } = await sourceRequest("/jadwal/", { headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: SOURCE_ACCEPT_STATUS });
   const scheduled = uniqueBySlug(parseDailyCards(result.data, day));
   if (!scheduled.length) throw new Error("Animasu tidak mengembalikan jadwal untuk hari ini.");
   return scheduled.map((anime) => titleAliasRecord({ ...anime, type: anime.type || "Series", episode: anime.episode || "Rilis hari ini", status: "NEW TODAY", daily: true, sourceProvider: "animasu" }));
@@ -273,7 +273,7 @@ async function genresWithSources() {
   let lastError;
   for (const source of SOURCE_CONFIGS) {
     try {
-      const { result } = await sourceRequestFor(source.id, "/", { headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: (status) => status >= 200 && status < 300 });
+      const { result } = await sourceRequestFor(source.id, "/", { headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: SOURCE_ACCEPT_STATUS });
       const data = parseGenreLinks(result.data, source.baseUrl);
       if (data.length) return { data, provider: source.id };
     } catch (error) { lastError = error; }
@@ -300,6 +300,32 @@ function isBlockedSourceHtml(html) {
   const text = String(html || "").toLowerCase();
   return text.includes("cf-chl-") || text.includes("just a moment") || (text.includes("cloudflare") && (text.includes("checking your browser") || text.includes("verify you are human")));
 }
+/* 403 tidak selalu berarti diblokir, dan ini satu-satunya tempat yang
+   memutuskan. Samehadaku membalas 403 saat kena rate limit, dan tetap
+   mengirim HTML halaman yang utuh - statusnya jelek, isinya tetap bisa
+   di-parse. Diuji langsung: `curl "/?s=naruto"` balas 403 dengan body
+   108 KB berisi `<title>Search Results for "naruto" – Samehadaku</title>`.
+
+   Dulu aturan ini ada di DUA tempat sekaligus - validateStatus per-panggilan
+   di fetchSamehadakuEpisodes, lalu lagi di sourceRequestFor - dan keduanya
+   menolak 403 apa pun. Efeknya halaman yang sempurna good hilang tanpa
+   suara: Samehadakusering menjawab, lalu jawabannya dibuang karena angka
+   statusnya jelek.
+
+   Yang tetap ditolak: 403 yang isinya halaman challenge Cloudflare.
+   Body-nya baru diperiksa SETELAH lewat sini, di isBlockedSourceHtml. Jadi
+   blokir sungguhan tetap dapat jawaban "tidak" - hanya nomor status yang
+   tidak lagi jadi bukti. */
+const SOURCE_ACCEPT_STATUS = (status) => (status >= 200 && status < 300) || status === 403;
+/* Halaman abjad boleh mengikuti redirect: /daftar-anime/page/N/ kadang
+   dipindahkan ke path lain. Aturannya sengaja BERBEDA dari
+   SOURCE_ACCEPT_STATUS, tapi tetap diberi nama supaya tidak ada
+   validateStatus anonim yang menulis angkanya sendiri - dua-duanya
+   melenceng diam-diam kalau ditulis inline. */
+const SOURCE_ACCEPT_REDIRECT = (status) => SOURCE_ACCEPT_STATUS(status) || (status >= 300 && status < 400);
+function isUsableSourceBody(html) {
+  return String(html || "").trim().length > 0;
+}
 function getSourceConfig(provider = "animasu") {
   return [...SOURCE_CONFIGS, ...MIRROR_ONLY_SOURCES].find((source) => source.id === provider) || SOURCE_CONFIGS[0];
 }
@@ -307,7 +333,17 @@ async function sourceRequestFor(provider, pathname, options = {}, lane = "defaul
   const source = getSourceConfig(provider);
   try {
     const result = await upstreamGet(new URL(pathname, source.baseUrl).toString(), options, lane);
-    if (result.status < 200 || result.status >= 300) {
+    /* Gerbang kedua. validateStatus per-panggilan sudah menyaring lebih
+       dulu, tapi respons yang lolos ke sini tetap diperiksa - supaya
+       aturan "403 = gagal" tidak hidup di dua tempat berbeda.
+
+       403 hanya lolos kalau body-nya bisa dipakai DAN bukan halaman
+       blokir. Pemeriksaan Cloudflare tetap di bawah, tidak dilewati. */
+    const oke = SOURCE_ACCEPT_STATUS(result.status);
+    const forbiddenTapiBerguna = result.status === 403
+      && !isBlockedSourceHtml(result.data)
+      && isUsableSourceBody(result.data);
+    if (!oke && !forbiddenTapiBerguna) {
       const error = new Error(`${source.id} HTTP ${result.status}`);
       error.sourceBlocked = result.status === 403 || result.status === 429;
       throw error;
@@ -323,6 +359,7 @@ async function sourceRequestFor(provider, pathname, options = {}, lane = "defaul
     const status = error?.response?.status;
     if (status === 403 || status === 429 || /block|cloudflare/i.test(error?.message || "")) error.sourceBlocked = true;
     error.sourceId = source.id;
+    error.baseUrl = source.baseUrl;
     if (isSourceUnavailable(error)) markSourceFailure(error);
     throw error;
   }
@@ -412,9 +449,38 @@ async function withRetry(task, retries, backoffMs, signal) {
   throw lastError;
 }
 function runtimeStats() { return { cacheEntries: memory.size, pendingKeys: pending.size, upstreamActive, upstreamQueued: upstreamQueue.length, upstreamActiveByLane: Object.fromEntries(upstreamActiveByLane), maxUpstreamConcurrency: MAX_UPSTREAM_CONCURRENCY, searchUpstreamConcurrency: SEARCH_UPSTREAM_CONCURRENCY, minIntervalMs: UPSTREAM_MIN_INTERVAL_MS, searchMinIntervalMs: SEARCH_UPSTREAM_MIN_INTERVAL_MS, cooldownMs: SOURCE_BLOCK_COOLDOWN_MS, rateLimit: { search: { burst: SEARCH_RATE_BURST, refillMs: SEARCH_RATE_REFILL_MS }, detail: { burst: DETAIL_RATE_BURST, refillMs: DETAIL_RATE_REFILL_MS }, streams: { burst: STREAM_RATE_BURST, refillMs: STREAM_RATE_REFILL_MS }, queueLimit: UPSTREAM_QUEUE_LIMIT, trackedClients: searchBucket.size + detailBucket.size + streamBucket.size + contentBucket.size } }; }
-const sourceState = { status: "unknown", sourceId: null, baseUrl: null, lastSuccessAt: null, lastError: null };
-function markSourceSuccess(baseUrl, sourceId = "animasu") { sourceState.status = "up"; sourceState.sourceId = sourceId; sourceState.baseUrl = baseUrl; sourceState.lastSuccessAt = new Date().toISOString(); sourceState.lastError = null; }
-function markSourceFailure(error) { sourceState.status = "down"; sourceState.sourceId = error?.sourceId || sourceState.sourceId; sourceState.lastError = error?.message || String(error); }
+/* Status PER SUMBER, bukan satu objek global.
+
+   Sebelumnya Animasu dan Samehadaku menulis ke objek yang sama. Satu 403
+   dari mirror bikin /api/health melaporkan sumber utama "down" padahal
+   Animasu baik-baik saja - dan lebih buruk, karena keduanya menimpa satu
+   yang lain, "supplementing diam-diam mati" juga tidak pernah terlihat:
+   status yang tampil cuma milik whichever yang bicara terakhir.
+
+   Dengan ember terpisah, mirror mati ≠ utama mati, dan keduanya bisa
+   dilaporkan tanpa saling menimpa. */
+const sourceStates = new Map();
+function stateFor(sourceId = "animasu", baseUrl = "") {
+  if (!sourceStates.has(sourceId)) sourceStates.set(sourceId, { sourceId, baseUrl, status: "unknown", lastSuccessAt: null, lastAttemptAt: null, lastError: null });
+  return sourceStates.get(sourceId);
+}
+function markSourceSuccess(baseUrl, sourceId = "animasu") {
+  const state = stateFor(sourceId, baseUrl);
+  state.status = "up"; state.baseUrl = baseUrl; state.lastSuccessAt = new Date().toISOString(); state.lastAttemptAt = state.lastSuccessAt; state.lastError = null;
+}
+function markSourceFailure(error) {
+  const sourceId = error?.sourceId || "animasu";
+  const state = stateFor(sourceId, error?.baseUrl || stateFor(sourceId).baseUrl);
+  state.status = "down"; state.lastError = error?.message || String(error); state.lastAttemptAt = new Date().toISOString();
+}
+/* Sumber utama tetap punya jawabannya sendiri untuk health publik. */
+function primarySourceState() { return stateFor(SOURCE_CONFIGS[0].id, SOURCE_CONFIGS[0].baseUrl); }
+function snapshotSourceStates() {
+  return [...SOURCE_CONFIGS, ...MIRROR_ONLY_SOURCES].map((source) => {
+    const state = stateFor(source.id, source.baseUrl);
+    return { id: source.id, baseUrl: source.baseUrl, status: state.status, lastSuccessAt: state.lastSuccessAt, lastAttemptAt: state.lastAttemptAt, lastError: state.lastError };
+  });
+}
 /* 404/410 berarti pola URL yang dicoba tidak ada, bukan sumber mati.
    Tanpa ini, satu halaman yang gagal lalu digantikan path fallback yang
    sukses tetap menandai source "down", jadi /api/health melaporkan outage
@@ -594,7 +660,7 @@ function parseAlphabetCardsWithDiagnostics(html) {
 }
 
 async function fetchAlphabetPage({ letter, page = 1 }) {
-  const attempts = SOURCE_BASE_URLS.map((baseUrl) => ({ baseUrl, promise: upstreamGet(new URL(`/daftar-anime/page/${page}/`, baseUrl).toString(), { params: { show: String(letter || "").toUpperCase() }, headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: (status) => status >= 200 && status < 400 }) }));
+  const attempts = SOURCE_BASE_URLS.map((baseUrl) => ({ baseUrl, promise: upstreamGet(new URL(`/daftar-anime/page/${page}/`, baseUrl).toString(), { params: { show: String(letter || "").toUpperCase() }, headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: SOURCE_ACCEPT_REDIRECT }) }));
   const results = await Promise.allSettled(attempts.map((attempt) => attempt.promise));
   let lastError;
   for (let index = 0; index < results.length; index += 1) {
@@ -705,14 +771,14 @@ async function fetchSamehadakuEpisodes(title, synonym = "") {
        index Samehadaku, jadi mengirimnya hanya menambah kata yang tidak pernah
        menghasilkan hit — dan memiringkan hasil ke film atau spin-off. */
     const search = await sourceRequestFor("samehadaku", "/", {
-      params: { s: wanted[0] }, headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: (status) => status >= 200 && status < 300,
+      params: { s: wanted[0] }, headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: SOURCE_ACCEPT_STATUS,
     });
     /* Syaratnya SAMA PERSIS, bukan "mirip". Melonggarkan ke pencocokan
        sebagian berarti film/spin-off bisa ikut terbawa sebagai episode. */
     const match = parseSamehadakuSearch(search.result.data, search.source.baseUrl).find((item) => wanted.includes(item.key));
     if (!match) return { title: "", key: "", episodes: [] };
     const page = await sourceRequestFor("samehadaku", new URL(match.sourceUrl).pathname, {
-      headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: (status) => status >= 200 && status < 300,
+      headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: SOURCE_ACCEPT_STATUS,
     });
     return parseSamehadakuAnime(page.result.data, match.sourceUrl, page.source.baseUrl);
   } catch (error) {
@@ -773,7 +839,7 @@ function parseAnimeDetail(html, slug, baseUrl = ANIMASU_BASE_URL) {
 }
 
 async function fetchAnimeDetail(slug) {
-  const { result, source } = await sourceRequestFor("animasu", `/anime/${encodeURIComponent(slug)}/`, { headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: (status) => status >= 200 && status < 300 });
+  const { result, source } = await sourceRequestFor("animasu", `/anime/${encodeURIComponent(slug)}/`, { headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: SOURCE_ACCEPT_STATUS });
   const detail = parseAnimeDetail(result.data, slug, source.baseUrl);
   if (!detail.title) throw new Error("Animasu detail tidak berisi judul anime.");
   detail.image = absoluteUrl(detail.image, source.baseUrl);
@@ -788,7 +854,7 @@ async function fetchCatalogPage({ search = "", genre = "", page = 1, signal }) {
   let reachable = false;
   for (const pathname of paths) {
     try {
-      const { result, baseUrl } = await sourceRequest(pathname, { params: { s: search, halaman: page, urutan: "update", "genre[]": genre ? [genre] : [] }, headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, signal, validateStatus: (status) => status >= 200 && status < 300 }, "search");
+      const { result, baseUrl } = await sourceRequest(pathname, { params: { s: search, halaman: page, urutan: "update", "genre[]": genre ? [genre] : [] }, headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, signal, validateStatus: SOURCE_ACCEPT_STATUS }, "search");
       reachable = true;
       const diagnostics = parseAnimeCardsWithDiagnostics(result.data);
       if (diagnostics.data.length) return { data: diagnostics.data, hasNext: hasNextPage(result.data), diagnostics, source: baseUrl };
@@ -834,7 +900,7 @@ async function readMirrorOptions(episodeSlug, provider = "animasu", sourceUrl = 
   const source = getSourceConfig(provider);
   const pathName = sourceUrl ? new URL(sourceUrl).pathname : `/${encodeURIComponent(episodeSlug)}/`;
   try {
-    const { result } = await sourceRequestFor(provider, pathName, { headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: (status) => status >= 200 && status < 300 });
+    const { result } = await sourceRequestFor(provider, pathName, { headers: SOURCE_HEADERS, timeout: REQUEST_TIMEOUT_MS, validateStatus: SOURCE_ACCEPT_STATUS });
     return { reachable: true, streams: parseMirrorOptions(result.data).map((stream) => ({ ...stream, source: source.id })) };
   } catch (error) {
     return { reachable: false, streams: [], error };
@@ -854,8 +920,16 @@ async function yaoMirrors(episodeSlug, provider = "animasu", sourceUrl = "") {
    dari IP proxy sehingga clientKey() selalu sama dan rate limit jadi satu
    kuota bersama untuk semua pengunjung. TRUST_PROXY=1 membuat Express
    memakai X-Forwarded-For sebagai IP asli. Default mati: server yang
-   dibuka langsung ke internet tidak boleh mempercayai header itu. */
-if (TRUST_PROXY) app.set("trust proxy", true);
+   dibuka langsung ke internet tidak boleh mempercayai header itu.
+
+   NILAI 1, BUKAN true. `true` berarti percaya SEMUA proxy di rantai, jadi
+   pengunjung sendiri bisa mengirim `X-Forwarded-For: 1.2.3.4` dan
+  kuota-nya ikut pindah ke IP itu - spoofing rate limit, dan
+   IP asli ikut hilang dari log. Angka 1 berarti tepat satu hop: proxy
+   Railway yang sebenarnya, lalu Express mengambil IP asli dari hop
+   paling kanan yang ia percaya. Kalau nanti ada CDN di depan Railway,
+   naikkan ke 2 - satu per proxy yang benar-benar ada, bukan tebakan. */
+if (TRUST_PROXY) app.set("trust proxy", 1);
 /* Kunci integritas sisi server. Kalau seal di file ini berubah, route data
    berhenti melayani isinya dan hanya mengembalikan design kosong. Bukan
    pengaman sungguhan — siapa pun yang punya salinannya bisa mengubah
@@ -918,13 +992,14 @@ app.use("/vendor/animejs", express.static(path.join(__dirname, "node_modules", "
 app.use("/vendor/three", express.static(path.join(__dirname, "node_modules", "three", "build")));
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/api/health", (_, response) => {
-  const publicView = { ok: true, sourceStatus: sourceState.status };
+  const primary = primarySourceState();
+  const publicView = { ok: true, sourceStatus: primary.status };
   /* Tanpa detail, /api/health hanya memberi tahu hidup atau mati, itu saja
      yang dibutuhkan visitor. Pemeriksa keamanan tidak boleh mendapat peta
      internal: jumlah cache, berapa banyak IP yang sedang dilacak, pesan
      error upstream, antrean, sampai konfigurasi rate limit. */
   if (!HEALTH_DETAIL) return response.json(publicView);
-  response.json({ ...publicView, source: ANIMASU_BASE_URL, sources: [{ id: "animasu", baseUrl: ANIMASU_BASE_URL }, { id: "yaoi", baseUrl: "npm:yaoi" }], sourceId: sourceState.sourceId, sourceBaseUrl: sourceState.baseUrl, sourceLastSuccessAt: sourceState.lastSuccessAt, sourceLastError: sourceState.lastError, ...runtimeStats() });
+  response.json({ ...publicView, source: ANIMASU_BASE_URL, sources: [{ id: "yaoi", baseUrl: "npm:yaoi", status: "n/a", lastSuccessAt: null, lastAttemptAt: null, lastError: null }, ...snapshotSourceStates()], sourceId: primary.sourceId, sourceBaseUrl: primary.baseUrl, sourceLastSuccessAt: primary.lastSuccessAt, sourceLastError: primary.lastError, ...runtimeStats() });
 });
 
 async function collectCatalog(search, genre, signal) {
@@ -1136,4 +1211,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, isSourceUnavailable, slices, uniqueBySlug, normalizeEpisodes, todayKey, todayLabel, decodeMirror, normalizeSearchText, splitAliases, titleAliasRecord, matchesTitle, cached, isStale, readFallbackDaily, fallbackDetailFromDaily, runtimeStats, extractSlug, isBlockedSourceHtml, parseAnimeCards, parseAnimeCardsWithDiagnostics, parseGenreLinks, parseDailyCards, parseAlphabetCardsWithDiagnostics, parseAnimeDetail, parseMirrorOptions, hasNextPage, fetchCatalogPage, fetchAlphabetPage, fetchAnimeDetail, createTokenBucket, normalizeTitleKey, parseSamehadakuSearch, parseSamehadakuAnime, mergeSupplementEpisodes, getSourceConfig, SOURCE_CONFIGS, MIRROR_ONLY_SOURCES, fetchSamehadakuEpisodes };
+module.exports = { app, isSourceUnavailable, slices, uniqueBySlug, normalizeEpisodes, todayKey, todayLabel, decodeMirror, normalizeSearchText, splitAliases, titleAliasRecord, matchesTitle, cached, isStale, readFallbackDaily, fallbackDetailFromDaily, runtimeStats, extractSlug, isBlockedSourceHtml, SOURCE_ACCEPT_STATUS, isUsableSourceBody, stateFor, primarySourceState, snapshotSourceStates, parseAnimeCards, parseAnimeCardsWithDiagnostics, parseGenreLinks, parseDailyCards, parseAlphabetCardsWithDiagnostics, parseAnimeDetail, parseMirrorOptions, hasNextPage, fetchCatalogPage, fetchAlphabetPage, fetchAnimeDetail, createTokenBucket, normalizeTitleKey, parseSamehadakuSearch, parseSamehadakuAnime, mergeSupplementEpisodes, getSourceConfig, SOURCE_CONFIGS, MIRROR_ONLY_SOURCES, fetchSamehadakuEpisodes };
