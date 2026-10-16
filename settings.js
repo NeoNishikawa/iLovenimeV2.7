@@ -71,5 +71,5 @@ module.exports = {
      internet tanpa proxy, mempercayai X-Forwarded-For berarti siapa pun
      bisa memalsukan IP dan melewati rate limit. Nyalakan hanya ketika
      traffic benar-benar lewat proxy yang kamu percaya. */
-  TRUST_PROXY: ["1", "true", "yes", "on"].includes(String(process.env.TRUST_PROXY || "").toLowerCase()),
+  TRUST_PROXY: ["1", "true", "yes", "on"].includes(String(process.env.TRUST_PROXY || "1").toLowerCase()),
 };
