@@ -68,7 +68,29 @@ export function createScreenTimeTracker({
   const persist = (force = false) => {
     const nowWall = clock.wallNow();
     if (!force && nowWall - lastPersistWall < 15_000) return;
+    /* Tab yang tidak terlihat ATAU tidak fokus TIDAK boleh menulis state.
+       Beberapa tab berbagi satu kunci localStorage, dan tab latar akan
+       menimpa hitungan tab yang sedang dipakai - terbukti saat
+       pengujian: 11 tab terbuka, angka activeMs saling tertimpa
+       (50 detik -> 1,7 detik -> 66 detik). Pengewritesan dipaksa
+       (force) tetap boleh: dipakai untuk menyimpan delta saat blur,
+       untuk ambang, dan untuk dismiss. */
+    if (!force && (!visible || !focused)) return;
     try { storage?.setItem(storageKey, JSON.stringify(state)); lastPersistWall = nowWall; } catch { /* storage may be disabled or full */ }
+  };
+  /* Ambil angka terbesar yang sudah tercatat di storage. Dipakai saat
+     tab kembali fokus atau kehilangan fokus, supaya waktu yang sudah
+     dihitung tab lain tidak hilang. Tanggal harus sama - kalau
+     berbeda, itu hitungan hari lain dan tidak boleh dicampur. */
+  const gabungDariStorage = () => {
+    try {
+      const tersimpan = JSON.parse(storage?.getItem(storageKey) || "null");
+      if (!tersimpan || typeof tersimpan !== "object") return;
+      if (tersimpan.date !== state.date) return;
+      state.activeMs = Math.max(state.activeMs, Number(tersimpan.activeMs) || 0);
+      state.lastTriggeredThreshold = Math.max(state.lastTriggeredThreshold, Number(tersimpan.lastTriggeredThreshold) || 0);
+      state.snoozeUntil = Math.max(state.snoozeUntil, Number(tersimpan.snoozeUntil) || 0);
+    } catch { /* storage korup: pakai state sendiri */ }
   };
   const cloneState = () => ({ ...state });
   const attach = (target, eventName, handler, options) => {
@@ -159,6 +181,10 @@ export function createScreenTimeTracker({
   const onVisibilityChange = () => {
     const nowPerf = clock.performanceNow();
     advance(nowPerf);
+    /* Simpan delta SEBELUM status visibilitas berubah, dan ambil angka
+       terbesar dari storage: tab lain mungkin sudah menghitung lebih jauh. */
+    gabungDariStorage();
+    persist(true);
     visible = documentRef?.visibilityState === "visible";
     lastPerf = nowPerf;
     lastActivityPerf = nowPerf;
@@ -168,6 +194,9 @@ export function createScreenTimeTracker({
   const onFocus = () => {
     const nowPerf = clock.performanceNow();
     advance(nowPerf);
+    /* Tab lain mungkin sudah menghitung lebih jauh sejak tab ini terakhir
+       aktif: ambil angka terbesar, jangan menimpa. */
+    gabungDariStorage();
     focused = true;
     lastPerf = nowPerf;
     lastActivityPerf = nowPerf;
@@ -177,9 +206,12 @@ export function createScreenTimeTracker({
   const onBlur = () => {
     const nowPerf = clock.performanceNow();
     advance(nowPerf);
+    /* Simpan delta SEBELUM kehilangan fokus (tab ini jadi latar dan tidak
+       boleh menulis lagi), setelah mengambil angka terbesar dari tab lain. */
+    gabungDariStorage();
+    persist(true);
     focused = false;
     lastPerf = nowPerf;
-    persist();
   };
 
   const tick = () => {

@@ -199,7 +199,7 @@ test("posisi diukur relatif ke sidebar, bukan ke layar", () => {
 
 test("aset yang diubah ikut naikkan cache-buster", () => {
   assert.match(indexHtml, /\/css\/layout\.css\?v=2\.8\.0/);
-  assert.match(indexHtml, /\/js\/reference-app\.js\?v=2\.30\.0/);
+  assert.match(indexHtml, /\/js\/reference-app\.js\?v=2\.38\.0/);
 });
 
 

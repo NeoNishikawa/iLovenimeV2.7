@@ -28,9 +28,24 @@ function cacheSet(key, promise) {
    daripada menggantung. */
 const REQUEST_TIMEOUT_MS = 20_000;
 
+/* Batas waktu punya DUA jam, bukan satu.
+   - Jam RESPON: header harus sampai dalam REQUEST_TIMEOUT_MS.
+   - Jam BADAN: mulai DARI KETIKA header tiba, jadi badan yang tulis
+     lambat tidak ikut dihitung sebagai "tidak merespons".
+   Dengan satu jam untuk keduanya, balasan yang tiba 1 milidetik
+   sebelum batas bisa terbuang dan dilaporkan sebagai timeout -
+   dibuktikan fuzz: delay 299 ms dari batas 300 ms dilaporkan
+   "tidak merespons dalam 0 detik". Sekarang header diukur sendiri,
+   dan jam badan mulai setelah header tiba, jadi balasan yang memang
+   di bawah batas selalu berhasil.
+   Jam badan tetap ada supaya "header lalu body macet" tidak menggantung
+   selamanya - itu cacat yang dulu ditemukan di sini. */
+const BODY_TIMEOUT_GRACE_MS = Math.max(250, Math.floor(REQUEST_TIMEOUT_MS / 4));
 function denganBatasWaktu(options) {
   const kendali = new AbortController();
   let lewatWaktu = false;
+  let lewatWaktuBody = false;
+  let timerBody = null;
   const timer = setTimeout(() => { lewatWaktu = true; kendali.abort(); }, REQUEST_TIMEOUT_MS);
   const luar = options.signal;
   if (luar) {
@@ -40,7 +55,17 @@ function denganBatasWaktu(options) {
   return {
     signal: kendali.signal,
     lewatWaktu: () => lewatWaktu,
-    berhenti: () => clearTimeout(timer),
+    lewatWaktuBody: () => lewatWaktuBody,
+    /* Dipanggil setelah header tiba: fase header SELESAI, jadi jam
+       respons dimatikan (kalau tidak, ia tetap membatalkan badan yang
+       sebenarnya sedang mengalir baik-baik), dan jam badan mulai dari
+       titik ini. */
+    mulaiBadan: () => {
+      if (timerBody) return;
+      clearTimeout(timer);
+      timerBody = setTimeout(() => { lewatWaktuBody = true; kendali.abort(); }, REQUEST_TIMEOUT_MS + BODY_TIMEOUT_GRACE_MS);
+    },
+    berhenti: () => { clearTimeout(timer); if (timerBody) clearTimeout(timerBody); },
   };
 }
 
@@ -48,6 +73,9 @@ async function request(path, options = {}) {
   const batas = denganBatasWaktu(options);
   try {
     const response = await fetch(path, { ...options, signal: batas.signal });
+    /* Header sudah tiba. Jam badan mulai dari titik ini - badan yang
+       lambat tulis tidak boleh dihitung sebagai "tidak merespons". */
+    batas.mulaiBadan();
     /* response.text() WAJIB di dalam jendela batas waktu. Versi pertama
        menghentikan timer sebelum body dibaca, jadi server yang sudah
        mengirim header lalu macet di body akan menggantung selamanya -
@@ -78,6 +106,16 @@ async function request(path, options = {}) {
          batas waktu harus berhenti, bukan mengulang dan menambah 20 detik. */
       error.status = 0;
       error.timeout = true;
+      throw error;
+    }
+    if (batas.lewatWaktuBody()) {
+      /* Header tiba, badan tidak selesai: server menjawab tapi macet di
+         tengah. Fakta ini beda dari "tidak merespons" - pesan yang
+         jujur lebih berguna daripada "tidak merespons dalam 0 detik". */
+      const error = new Error(`Respons server terpotong: badan belum selesai dalam ${Math.round((REQUEST_TIMEOUT_MS + BODY_TIMEOUT_GRACE_MS) / 1000)} detik`);
+      error.status = 0;
+      error.timeout = true;
+      error.truncated = true;
       throw error;
     }
     throw e;

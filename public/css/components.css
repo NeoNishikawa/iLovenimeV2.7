@@ -419,9 +419,52 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .modal-bar .spacer{margin-left:auto}
 .modal-bar .icon-btn{display:grid;place-items:center;border-radius:8px;color:var(--text-2);transition:background .2s ease-in-out,color .2s ease-in-out,transform .2s var(--ease-out)}
 .modal-bar .icon-btn:hover{background:var(--accent-soft);color:var(--gold);transform:scale(1.1)}
-.watch-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,3fr);min-height:0;flex:1;overflow:hidden}
+.watch-grid{display:grid;grid-template-columns:minmax(0,1fr);min-height:0;flex:1;overflow:hidden}
 .watch-left{min-width:0;overflow-y:auto;overflow-x:hidden;padding:18px;position:relative}
 .watch-right{min-width:0;overflow-y:auto;padding:18px;border-left:1px solid var(--border);background:var(--bg-2)}
+
+/* ---------- Daftar episode: kolom kanan, susunan TURUN ----------
+   21 Oktober, percobaan pertama: daftar episode dipindah ke kolom kanan
+   dan dijadikan papan tombol mendatar (3-4 per baris). Hasilnya
+   ganjil - tombolnya kecil-kecil dan ruang di bawahnya kosong.
+   Sekarang: kolom kanan dipakai, tapi daftarnya TURUN - satu tombol per
+   baris, seperti aslinya, hanya pindah tempat. Kolom kannya sempit
+   (200px) dan tombolnya memenuhi lebar kolom, jadi tidak ada ruang
+   sia-sia. Daftar panjang digulir sendiri.
+   Di bawah 1024 (HP) daftar tetap di BAWAH iframe seperti semula:
+   .watch-left jadi grid hanya di layar lebar, jadi urutan DOM di HP
+   tidak berubah sama sekali. */
+.ep-panel{min-width:0}
+@media (min-width:1024px){
+  .watch-left{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 200px;
+    column-gap:18px;
+    align-items:start;
+    grid-template-areas:
+      "player eps"
+      "mirror eps"
+      "title  eps"
+      "sub    eps"
+      "acts   eps"
+      "dl     eps"
+      "detail eps";
+  }
+  .player-stage{grid-area:player}
+  .mirror-row{grid-area:mirror}
+  .watch-title{grid-area:title}
+  .watch-sub{grid-area:sub}
+  .watch-actions{grid-area:acts}
+  .dl-block{grid-area:dl}
+  .detail-block{grid-area:detail}
+  .ep-panel{grid-area:eps}
+  .ep-panel .panel-title{margin-bottom:8px}
+  .ep-list{
+    display:flex;flex-direction:column;gap:4px;
+    max-height:min(58vh,560px);overflow-y:auto;padding-right:4px;
+  }
+  .ep-item{width:100%}
+}
 
 .watch-left.ep-out-left{animation:epSlideOutLeft .26s cubic-bezier(.4,0,.6,1) forwards}
 .watch-left.ep-out-right{animation:epSlideOutRight .26s cubic-bezier(.4,0,.6,1) forwards}
@@ -504,6 +547,10 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   padding:9px 11px;border-radius:9px;font-size:12.5px;color:var(--text-2);
   border:1px solid transparent;transition:background .2s ease-in-out,color .2s ease-in-out,border-color .2s ease-in-out;
 }
+/* Label episode: judul dari source ("Episode 1", atau nama episode
+   sungguhan). Dipotong dengan ellipsis kalau panjang, dan nama
+   penuhnya ada di title attribute untuk hover. */
+.ep-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ep-item:hover{background:var(--surface);color:var(--text);border-color:var(--border)}
 .ep-item.current{background:var(--primary);color:#fff;border-color:transparent}
 .ep-item .st{width:14px;flex:0 0 14px;display:grid;place-items:center;font-size:10px}
@@ -568,34 +615,42 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .vo-hotspot{position:absolute;inset:0;z-index:3;pointer-events:none}
 .video-overlay{
   position:absolute;inset:0;z-index:4;pointer-events:none;
-  background:linear-gradient(rgba(0,0,0,.62), transparent 84px);
+  background:linear-gradient(to top, rgba(0,0,0,.72), transparent 120px);
   opacity:0;transition:opacity .24s ease-in-out;
 }
 .video-overlay.show{opacity:1;pointer-events:none}
+/* Kontrol player tinggal DI DALAM area iframe: satu bar melayang di
+   bawah video. Riwayat: pertama-tama melayang di atas gambar (menutupi
+   player, susah ditekuk jarinya di HP), lalu jadi baris penuh di bawah
+   iframe (lebar, memakan ruang). Sekarang satu bar di dalam frame, dan
+   gradiennya ikut ke bawah supaya yang gelap ada di bawah video. */
 .vo-bar{
-  position:absolute;top:0;left:0;right:0;height:56px;
-  display:flex;align-items:center;gap:10px;padding:8px 12px;
-  pointer-events:auto;
+  position:absolute;bottom:0;left:0;right:0;height:auto;
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  /* Bar-nya sendiri TRANSPARAN terhadap klik: bagian tengahnya yang
+     kosong harus meneruskan klik ke iframe (tombol play pihak ketiga
+     ada di bawah-kiri). Hanya anaknya - pilih mirror dan tombol
+     episode - yang bisa diklik. */
+  pointer-events:none;
 }
-/* Baris mirror: DI BAWAH iframe, di atas judul. Semula select mirror
-   melayang di dalam video-overlay (di atas gambar). Itu menutupi
-   player dan sulit dikejar saat tangan memegang HP. Sekarang jadi baris
-   penuh: selalu kelihatan, tidak menambah lapisan di atas video, dan
-   tombol prev/next pindah ke sini karena video-overlay tidak lagi
-   memuat kontrol apa pun. */
-.mirror-row{
-  display:flex;align-items:center;gap:10px;
-  margin:10px 0 12px;flex-wrap:wrap;
+.vo-bar .custom-mirror-select,
+.vo-bar .vo-actions{pointer-events:auto}
+/* Pilih mirror di dalam bar: ringkas, tidak lagi selebar layar. */
+.vo-bar .custom-mirror-select{width:auto;flex:0 1 auto;min-width:0}
+.vo-bar .mirror-trigger{
+  width:auto;height:34px;padding:0 10px;gap:7px;
+  background:rgba(0,0,0,.55);border-color:rgba(255,255,255,.18);color:#fff;
+  font-size:12.5px;
 }
-.mirror-row .custom-mirror-select{flex:1 1 200px;min-width:0}
-.mirror-row .mirror-trigger{
-  width:100%;height:40px;
-  background:var(--surface);border:1px solid var(--border);
-}
-.mirror-row .vo-actions{display:flex;gap:8px;flex:0 0 auto}
-.vo-hint{
-  font-size:11px;color:var(--text-2);padding:4px 10px;
-  background:rgba(0,0,0,.55);border-radius:8px;
+.vo-bar .mirror-trigger:hover{border-color:var(--gold-2);color:var(--gold)}
+.vo-bar .mirror-trigger .ico{width:14px;height:14px}
+.vo-bar .mirror-trigger .gf-chev{width:14px;height:14px}
+/* Panel mirror membuka ke ATAS: tetap di dalam frame, tidak keluar dari
+   kotak video (kotak video overflow hidden). */
+.vo-bar .mirror-options{
+  top:auto;bottom:calc(100% + 6px);left:0;right:auto;
+  min-width:220px;max-width:min(78vw,320px);
+  max-height:min(46vh,320px);overflow-y:auto;
 }
 
 .vo-mirror{flex:0 1 300px;min-width:170px}
@@ -764,3 +819,83 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 /* ---------- Search tombol ikon ---------- */
 .filter-search-btn{width:44px;padding:0;justify-content:center}
 .filter-search-btn .ico{width:17px;height:17px}
+
+/* ==========================================================================
+   Unduhan batch - dropdown dua tingkat.
+   Tingkat 1: pilih resolusi. Tingkat 2: sub-menu tautan untuk resolusi itu.
+   Situs tidak menyimpan berkas video; yang di sini daftar tautan ke host
+   pihak ketiga (Google Drive, Mega, MediaFire, Pixeldrain).
+   ========================================================================== */
+.dl-block{ margin-top:var(--space-5); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-3); align-items:start; }
+/* Di bawah 640px dua kolom jadi satu - kartu yang sempit tidak berguna. */
+@media (max-width:640px){ .dl-block{ grid-template-columns:minmax(0,1fr); } }
+.dl-note{
+  grid-column:1/-1;
+  font-size:.78rem; line-height:1.5; color:var(--text-2);
+  border-left:2px solid var(--border); padding-left:var(--space-3);
+}
+.dl-batch{
+  background:var(--surface-2); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:var(--space-4);
+  display:flex; flex-direction:column; gap:var(--space-3); min-width:0;
+}
+.dl-batch h4{ margin:0; font-size:.95rem; color:var(--text); display:flex; flex-wrap:wrap; gap:var(--space-2); align-items:center; }
+/* Judul anime sengaja TIDAK ditampilkan - kepanjangan dan sudah jelas
+   dari halaman detail. Yang jadi kepala kartu: rentang episodenya. */
+.dl-range{
+  flex:0 0 auto; font-size:.92rem; font-weight:700; color:var(--gold-ink);
+  background:none; border-radius:0; padding:0;
+  letter-spacing:0; text-transform:none; white-space:nowrap;
+}
+
+/* Tingkat 1: pemilih resolusi. Bentuknya mengikuti dropdown mirror. */
+.dl-picker{ position:relative; width:100%; max-width:320px; }
+.dl-trigger{
+  width:100%; height:40px; padding:0 12px; border-radius:10px;
+  border:1px solid var(--border); background:var(--bg-2); color:var(--text);
+  font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px;
+  cursor:pointer; transition:border-color .2s ease-in-out, color .2s ease-in-out;
+}
+.dl-trigger:hover{ border-color:var(--gold-2); color:var(--gold); }
+.dl-trigger:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+.dl-trigger .ico{width:14px;height:14px;transition:transform .25s var(--ease-out)}
+.dl-picker.open .dl-trigger{ border-color:var(--gold); color:var(--gold); background:var(--gold-soft); }
+.dl-picker.open .dl-trigger .ico{ transform:rotate(180deg); }
+.dl-options{
+  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:60;
+  background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:6px;
+  box-shadow:0 16px 36px rgba(0,0,0,.35);
+}
+.dl-options button{
+  width:100%; text-align:left; padding:9px 12px; border-radius:8px; cursor:pointer;
+  font-size:12.5px; font-weight:500; color:var(--text-2); background:transparent;
+  border:1px solid transparent; display:flex; justify-content:space-between; gap:10px;
+  transition:background .15s ease-in-out, color .15s ease-in-out, border-color .15s ease-in-out;
+}
+.dl-options button:hover{ background:var(--bg-2); color:var(--text); border-color:var(--border); }
+.dl-options button small{ font-size:10.5px; color:var(--text-2); font-weight:500; }
+
+/* Tingkat 2: sub-menu tautan untuk resolusi yang dipilih. */
+.dl-subs{ display:flex; flex-direction:column; gap:var(--space-2); }
+.dl-sub{
+  display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-2);
+  padding-top:var(--space-2); border-top:1px dashed var(--border);
+}
+.dl-sub-label{ font-size:.74rem; color:var(--text-2); letter-spacing:.04em; text-transform:uppercase; }
+.dl-links{ display:flex; flex-wrap:wrap; gap:var(--space-2); }
+.dl-link{
+  display:inline-flex; align-items:center; padding:6px 12px; border-radius:999px;
+  border:1px solid var(--border); background:var(--surface-3);
+  color:var(--text); font-size:.78rem; text-decoration:none;
+  transition:border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.dl-link:hover{ border-color:var(--gold); background:var(--gold-soft); }
+.dl-link:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+
+/* Catatan "tunggu eps selanjutnya" - muncul di bawah episode terakhir
+   kalau anime masih tayang (dari dua sumber). */
+.ep-wait{
+  margin:var(--space-3) 0 0; padding:9px 12px; border-radius:10px;
+  border:1px dashed var(--border); background:var(--surface-2);
+  color:var(--text-2); font-size:12.5px; line-height:1.5; text-align:center;
+}

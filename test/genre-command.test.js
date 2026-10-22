@@ -224,7 +224,7 @@ test("aset yang diubah ikut naikkan cache-buster", () => {
   /* Tanpa ini browser memakai CSS/JS lama dan perubahannya terlihat acak. */
   assert.match(indexHtml, /\/css\/morph\.css\?v=2\.4\.2/);
   assert.match(indexHtml, /\/css\/responsive\.css\?v=2\.4\.0/);
-  assert.match(indexHtml, /\/js\/reference-app\.js\?v=2\.30\.0/);
+  assert.match(indexHtml, /\/js\/reference-app\.js\?v=2\.38\.0/);
 });
 test("/genre: menyaring chip langsung saat mengetik, bukan setelah Enter", () => {
   /* Inilah yang membedakan perintah ini dari sekadar membuka panel. Tanpa
@@ -288,7 +288,7 @@ test("openGenreCommand tidak menutup panelnya sendiri", () => {
 });
 
 test("components.css naik karena dapat aturan .gf-empty", () => {
-  assert.match(indexHtml, /\/css\/components\.css\?v=2\.14\.0/);
+  assert.match(indexHtml, /\/css\/components\.css\?v=2\.23\.0/);
   const comp = fs.readFileSync(path.join(ROOT, "public/css/components.css"), "utf8");
   assert.match(comp, /\.gf-empty\{[\s\S]{0,200}?grid-column:1\/-1/,
     "pesan harus membentang penuh, bukan menempati satu kolom chip");

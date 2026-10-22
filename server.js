@@ -329,6 +329,30 @@ function isUsableSourceBody(html) {
 function getSourceConfig(provider = "animasu") {
   return [...SOURCE_CONFIGS, ...MIRROR_ONLY_SOURCES].find((source) => source.id === provider) || SOURCE_CONFIGS[0];
 }
+/* Status HTTP untuk kegagalan baca dari source.
+   404 = judulnya memang tidak ada (fakta, tidak akan berubah dengan
+   menunggu); 502 = sumber sedang mati atau tidak bisa dibaca (kondisi,
+   mungkin pulih). Dua hal ini beda bagi pengguna, jadi jangan dicampur.
+   Ditemukan saat fuzz: belasan slug sampah semuanya dibalas 502 "source
+   tidak dapat membaca", padahal upstream sebenarnya membalas 404. */
+function detailErrorStatus(error) {
+  return error?.notFound ? 404 : 502;
+}
+
+/* Apakah anime ini masih tayang?
+   Status sumber berbahasa Indonesia ("Sedang Tayang", "Selesai"), dan
+   badge katalog memakai api (yang berarti tayang). Karena itu pola
+   "selesai" diperiksa lebih dulu - kalau tidak, kata "tayang" yang
+   ada di dalam "Selesai" bisa menipu.
+   "UPCOMING" sengaja TIDAK dihitung tayang: di parser katalog itu
+   berarti "badge tidak dikenali", bukan fakta. */
+function statusOngoing(status) {
+  const t = String(status || "").toLowerCase();
+  if (!t.trim()) return false;
+  if (/selesai|completed|complete|ended|finished|tamat/.test(t)) return false;
+  if (/sedang tayang|ongoing|airing|berjalan|running|baru|new today|tayang|\u{1F525}/u.test(t)) return true;
+  return false;
+}
 async function sourceRequestFor(provider, pathname, options = {}, lane = "default") {
   const source = getSourceConfig(provider);
   try {
@@ -346,6 +370,11 @@ async function sourceRequestFor(provider, pathname, options = {}, lane = "defaul
     if (!oke && !forbiddenTapiBerguna) {
       const error = new Error(`${source.id} HTTP ${result.status}`);
       error.sourceBlocked = result.status === 403 || result.status === 429;
+      /* 404 = judulnya memang tidak ada di source. Beda dari "sumber
+         mati" (502): yang satu fakta, yang satu kondisi. Tanpa penanda
+         ini, app menampilkan "source tidak bisa membaca" untuk anime
+         yang memang tidak pernah ada. */
+      error.notFound = result.status === 404;
       throw error;
     }
     if (isBlockedSourceHtml(result.data)) {
@@ -358,6 +387,11 @@ async function sourceRequestFor(provider, pathname, options = {}, lane = "defaul
   } catch (error) {
     const status = error?.response?.status;
     if (status === 403 || status === 429 || /block|cloudflare/i.test(error?.message || "")) error.sourceBlocked = true;
+    /* 404 = judulnya tidak ada di source. Datang dari error fetch itu
+       sendiri (fetch menolak status di luar validateStatus), jadi
+       penandanya dipasang DI SINI - bukan hanya di cabang "status
+       ditolak" di atas, karena error fetch tidak pernah sampai ke sana. */
+    if (status === 404) error.notFound = true;
     error.sourceId = source.id;
     error.baseUrl = source.baseUrl;
     if (isSourceUnavailable(error)) markSourceFailure(error);
@@ -738,6 +772,16 @@ function parseSamehadakuSearch(html, baseUrl = SAMEHADAKU_BASE_URL) {
        mengandung "-episode-", jadi tanpa pengecualian ini ia terhitung sebagai
        episode nomor 1 kedua dan membuat jumlah episode Samehadaku lebih banyak
        daripada kenyataan (terbukti: Iruma Season 4 terbaca 25, padahal 24). */
+/* Status dari halaman Samehadaku. Markup-nya bisa berubah dan tidak
+   selalu ada, jadi ini best-effort: kalau tidak ketemu, hasilnya kosong
+   dan tidak dipakai untuk menegur. */
+function parseSamehadakuStatus($) {
+  const badge = $(".sb").first().text().trim();
+  if (badge) return badge;
+  const baris = $(".spe span").filter((_, element) => /status/i.test($(element).text())).first();
+  return baris.length ? baris.text().split(":").slice(1).join(":").trim() : "";
+}
+
 function parseSamehadakuAnime(html, sourceUrl = "", baseUrl = SAMEHADAKU_BASE_URL) {
   const $ = cheerio.load(htmlAman(html));
   const title = $("h1").first().text().replace(/\s+/g, " ").trim();
@@ -760,7 +804,7 @@ function parseSamehadakuAnime(html, sourceUrl = "", baseUrl = SAMEHADAKU_BASE_UR
     const label = (anchor.attr("title") || anchor.find("img").first().attr("alt") || anchor.text() || "").replace(/\s+/g, " ").trim();
     episodes.push({ episode: label || `Episode ${fromSlug ? fromSlug[1] : episodes.length + 1}`, slug, sourceUrl: url, sourceProvider: "samehadaku" });
   });
-  return { title, key: normalizeTitleKey(title), episodes, sourceUrl };
+  return { title, key: normalizeTitleKey(title), episodes, status: parseSamehadakuStatus($), sourceUrl };
 }
 
 async function fetchSamehadakuEpisodes(title, synonym = "") {
@@ -803,6 +847,106 @@ function mergeSupplementEpisodes(primary = [], supplement = []) {
   return { episodes: [...byNumber.values()].sort((left, right) => left.number - right.number), added };
 }
 
+/* Batch unduhan: blok .bixbox .mctnx di halaman detail source. Tiap batch
+   punya judul (dengan rentang episode) dan baris per resolusi; tiap baris
+   punya tautan ke host pihak ketiga (Google Drive, Hxfile, acefile).
+   Situs tidak menyimpan filenya - ini hanya agregator tautan, jadi
+   tidak ada trafik unduhan yang lewat server kita. Tautan bisa
+   kedaluwarsa; karena itu tidak boleh di-cache lama.
+
+   Host yang DITAMPILKAN hanya empat: Google Drive, Mega, MediaFire, dan
+   Pixeldrain (permintaan Neo, 21 Oktober 2026). Host lain - Hxfile,
+   acefile, GoFile - sengaja dibuang, tidak cuma disembunyikan: tidak
+   ada gunanya membawa tautan yang tidak boleh dipakai. */
+const DOWNLOAD_HOST_ALLOW = [
+  /(^|\.)drive(\.usercontent)?\.google\.com$/i,
+  /(^|\.)mega\.(nz|co\.nz)$/i,
+  /(^|\.)mediafire\.com$/i,
+  /(^|\.)pixeldrain\.com$/i,
+];
+
+/* Angka tanpa nol di depan: "001" -> "1", "0" -> "0". */
+function tanpaNolDepan(teks) {
+  const mentah = String(teks || "").trim();
+  const angka = Number(mentah);
+  return Number.isFinite(angka) ? String(angka) : mentah;
+}
+
+/* Rentang episode dari teks batch. Bentuknya bervariasi di source:
+     - "Batch Subtitle Indonesia [ 1 - 25 ]"        (kurung siku)
+     - "Batch Subtitle Indonesia Episode 001-025"    (tanpa kurung)
+     - "Episode 01-12 BD Batch Subtitle Indonesia"  (episode di depan)
+   Di luar kurung siku, angka WAJIB preceded kata "episode"/"ep" -
+   kalau tidak, tahun rilis ("2019-2020") atau nomor season akan salah
+   tangkap sebagai rentang episode. Kalau tak ada yang cocok, hasilnya
+   kosong: lebih baik kosong daripada menebak. */
+function ambilRentangEpisode(teks) {
+  const sumber = String(teks || "");
+  const kurung = sumber.match(/\[([\d\s.\-–—]+)\]/);
+  if (kurung) {
+    const isi = kurung[1];
+    const rentang = isi.match(/(\d{1,4})\s*[-–—]\s*(\d{1,4})/);
+    if (rentang) return `${tanpaNolDepan(rentang[1])}-${tanpaNolDepan(rentang[2])}`;
+    const tunggal = isi.match(/(\d{1,4})/);
+    return tunggal ? tanpaNolDepan(tunggal[1]) : "";
+  }
+  const rentang = sumber.match(/\b(?:episode|ep)\b[\s:.\-]*(\d{1,4})\s*[-–—]\s*(\d{1,4})/i);
+  if (rentang) return `${tanpaNolDepan(rentang[1])}-${tanpaNolDepan(rentang[2])}`;
+  const tunggal = sumber.match(/\b(?:episode|ep)\b[\s:.\-]*(\d{1,4})/i);
+  return tunggal ? tanpaNolDepan(tunggal[1]) : "";
+}
+
+function parseDownloadBatches($, baseUrl = ANIMASU_BASE_URL) {
+  const batches = [];
+  $(".bixbox .mctnx").each((_, mctx) => {
+    /* Satu .mctnx berisi beberapa batch, masing-masing dibungkus .soraddlx.
+       Kalau pembungkusnya tidak ada, anggap .mctnx itu satu batch. */
+    const wrappers = $(mctx).find(".soraddlx").length ? $(mctx).find(".soraddlx") : $(mctx);
+    wrappers.each((__, wrapper) => {
+      const heading = $(wrapper).find(".sorattlx h3").first().text().trim();
+      if (!heading) return;
+      const mirrors = [];
+      $(wrapper).find(".soraurlx").each((___, row) => {
+        const labelBaris = $(row).find("strong").first().text().trim();
+        /* Kadang label baris BUKAN resolusi, tapi rentang episode
+           (mis. "01-25"). Kalau begitu dia jadi range, bukan kualitas. */
+        const rangeBaris = labelBaris.match(/^(\d{1,4})\s*[-–—]\s*(\d{1,4})$/);
+        const quality = rangeBaris ? "" : labelBaris;
+        const range = rangeBaris
+          ? `${tanpaNolDepan(rangeBaris[1])}-${tanpaNolDepan(rangeBaris[2])}`
+          : ambilRentangEpisode(labelBaris);
+        const links = [];
+        $(row).find("a[href]").each((____, anchor) => {
+          const href = ($(anchor).attr("href") || "").trim();
+          /* Hanya http(s). Skema lain (javascript:, data:) ditolak: nilainya
+             datang dari sumber luar dan masuk ke atribut href. */
+          if (!/^https?:\/\//i.test(href)) return;
+          let host = "";
+          try { host = new URL(href, baseUrl).hostname; } catch { host = ""; }
+          if (!DOWNLOAD_HOST_ALLOW.some((pola) => pola.test(host))) return;
+          links.push({ label: $(anchor).text().trim() || host || "Mirror", url: absoluteUrl(href, baseUrl), host });
+        });
+        if ((quality || range) && links.length) mirrors.push({ quality, range, links });
+      });
+      if (!mirrors.length) return;
+      /* Rentang batch: dari judul kalau ada. Kalau tidak, dari union
+         rentang baris - anime seperti Naruto menulis rentangnya di
+         label baris, bukan di judul batch. */
+      let range = ambilRentangEpisode(heading);
+      if (!range) {
+        const rentangBaris = mirrors.map((m) => m.range).filter(Boolean).map((r) => r.split("-").map(Number));
+        if (rentangBaris.length) {
+          const mulai = Math.min(...rentangBaris.map((r) => r[0]));
+          const akhir = Math.max(...rentangBaris.map((r) => r[1]));
+          range = mulai === akhir ? String(mulai) : `${mulai}-${akhir}`;
+        }
+      }
+      batches.push({ title: heading, range, mirrors });
+    });
+  });
+  return batches;
+}
+
 function parseAnimeDetail(html, slug, baseUrl = ANIMASU_BASE_URL) {
   const $ = cheerio.load(htmlAman(html));
   const info = $(".infox");
@@ -835,7 +979,7 @@ function parseAnimeDetail(html, slug, baseUrl = ANIMASU_BASE_URL) {
     const value = m ? Number(m[1]) : 0;
     return value > 0 && value <= 10 ? value : 0;
   }, 0);
-  return { slug, title, synonym, synopsis: $(".sinopsis p, .synopsis p").first().text().trim(), image: absoluteUrl(image, baseUrl), rating, genres, status: readInfo("status"), aired: readInfo("rilis"), type: readInfo("jenis") || "Unknown", episode: readInfo("episode") || "Unknown", duration: readInfo("durasi") || "Unknown", studio: readInfo("studio") || "Unknown", season: readInfo("musim") || "Unknown", trailer: $(".trailer iframe").attr("src") || "", updateAt: info.find("time[itemprop=dateModified]").attr("datetime") || "", episodes, batches: [] };
+  return { slug, title, synonym, synopsis: $(".sinopsis p, .synopsis p").first().text().trim(), image: absoluteUrl(image, baseUrl), rating, genres, status: readInfo("status"), aired: readInfo("rilis"), type: readInfo("jenis") || "Unknown", episode: readInfo("episode") || "Unknown", duration: readInfo("durasi") || "Unknown", studio: readInfo("studio") || "Unknown", season: readInfo("musim") || "Unknown", trailer: $(".trailer iframe").attr("src") || "", updateAt: info.find("time[itemprop=dateModified]").attr("datetime") || "", episodes, batches: parseDownloadBatches($, baseUrl) };
 }
 
 async function fetchAnimeDetail(slug) {
@@ -1119,20 +1263,37 @@ app.get("/api/anime/:slug", upstreamQueueGuard, upstreamBudget(detailBucket, (re
        detail sudah dibatasi token bucket; membayarkannya di setiap request
        berarti mengorbankan kapasitas Animasu untuk pengambil yang tidak perlu. */
     let supplementedFrom = "";
+    let statusSamehadaku = "";
     if (episodes.length < SUPPLEMENT_BELOW_EPISODES) {
       const supplement = await cached(`supplement:samehadaku:${detail.slug || request.params.slug}`, () => fetchSamehadakuEpisodes(detail.title, detail.synonym), DETAIL_CACHE_MS, true);
       const merged = mergeSupplementEpisodes(episodes, normalizeEpisodes(supplement?.episodes || []));
       if (merged.added) { episodes = merged.episodes; supplementedFrom = "samehadaku"; }
+      statusSamehadaku = supplement?.status || "";
     }
+
+    /* "Masih tayang" itu fakta dari DUA sumber. Animasu yang jadi
+       penentu; samehadaku boleh MENEGUR (kalau dia bilang selesai, jadi
+       bukan ongoing) tapi tidak boleh menghidupkan. Samehadaku hanya
+       dicek kalau supplement jalan - menambah satu request per anime
+       memakan kuota upstream, dan itu sudah jadi peringatan di
+       playbook. */
+    const ongoingAnimasu = statusOngoing(detail.status);
+    const ongoingSamehadaku = statusSamehadaku ? statusOngoing(statusSamehadaku) : null;
+    const ongoing = ongoingAnimasu && ongoingSamehadaku !== false;
 
     /* hasEpisodes dikirim terpisah: "anime ini belum ada episodenya" adalah
        jawaban yang SAH, bukan kegagalan. Tanpa flag ini, klien menampilkan
        pesan error untuk hal yang sebenarnya hanya belum tayang. */
-    response.json({ data: titleAliasRecord({ ...detail, episodes, hasEpisodes: episodes.length > 0 }), provider: detail.sourceProvider || provider, hasEpisodes: episodes.length > 0, supplementedFrom, stale: isStale(key) });
+    /* Flag ongoing ikut masuk ke payload data (bukan cuma di akar
+       respons): klien menyimpan response.data sebagai state.detail,
+       jadi kalau flagnya hanya di akar, sisi klien tidak pernah
+       melihatnya. */
+    response.json({ data: titleAliasRecord({ ...detail, episodes, hasEpisodes: episodes.length > 0, ongoing }), provider: detail.sourceProvider || provider, hasEpisodes: episodes.length > 0, ongoing, supplementedFrom, stale: isStale(key) });
   } catch (error) {
     const fallback = fallbackDetailFromDaily(request.params.slug);
     if (fallback) return response.json({ data: fallback, provider: "local-snapshot", stale: true, warning: `Detail live tidak tersedia (${error.message}); metadata dasar dari snapshot lokal ditampilkan.` });
-    response.status(502).json({ data: null, error: `Source anime tidak dapat membaca detail ini: ${error.message}` });
+    const kode = detailErrorStatus(error);
+    response.status(kode).json({ data: null, error: kode === 404 ? "Anime ini tidak ditemukan di source." : `Source anime tidak dapat membaca detail ini: ${error.message}` });
   }
 });
 
@@ -1143,7 +1304,7 @@ app.get("/api/streams/:episodeSlug", upstreamQueueGuard, upstreamBudget(streamBu
     const data = await cached(key, () => yaoMirrors(request.params.episodeSlug, "animasu"), STREAM_CACHE_MS, true);
     if (!data?.length) throw new Error("mirror tidak memiliki data yang valid");
     response.json({ data, total: data.length, provider, stale: isStale(key) });
-  } catch (error) { response.status(502).json({ data: [], total: 0, error: `${provider} tidak dapat membaca mirror: ${error.message}` }); }
+  } catch (error) { const kode = detailErrorStatus(error); response.status(kode).json({ data: [], total: 0, error: kode === 404 ? "Mirror untuk episode ini tidak ditemukan." : `${provider} tidak dapat membaca mirror: ${error.message}` }); }
 });
 
 /* --------------------------------------------------------------------------
@@ -1211,4 +1372,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, isSourceUnavailable, slices, uniqueBySlug, normalizeEpisodes, todayKey, todayLabel, decodeMirror, normalizeSearchText, splitAliases, titleAliasRecord, matchesTitle, cached, isStale, readFallbackDaily, fallbackDetailFromDaily, runtimeStats, extractSlug, isBlockedSourceHtml, SOURCE_ACCEPT_STATUS, isUsableSourceBody, stateFor, primarySourceState, snapshotSourceStates, parseAnimeCards, parseAnimeCardsWithDiagnostics, parseGenreLinks, parseDailyCards, parseAlphabetCardsWithDiagnostics, parseAnimeDetail, parseMirrorOptions, hasNextPage, fetchCatalogPage, fetchAlphabetPage, fetchAnimeDetail, createTokenBucket, normalizeTitleKey, parseSamehadakuSearch, parseSamehadakuAnime, mergeSupplementEpisodes, getSourceConfig, SOURCE_CONFIGS, MIRROR_ONLY_SOURCES, fetchSamehadakuEpisodes };
+module.exports = { app, isSourceUnavailable, slices, uniqueBySlug, normalizeEpisodes, todayKey, todayLabel, decodeMirror, normalizeSearchText, splitAliases, titleAliasRecord, matchesTitle, cached, isStale, readFallbackDaily, fallbackDetailFromDaily, runtimeStats, extractSlug, isBlockedSourceHtml, SOURCE_ACCEPT_STATUS, isUsableSourceBody, stateFor, primarySourceState, snapshotSourceStates, parseAnimeCards, parseAnimeCardsWithDiagnostics, parseGenreLinks, parseDailyCards, parseAlphabetCardsWithDiagnostics, parseAnimeDetail, parseDownloadBatches, ambilRentangEpisode, parseMirrorOptions, hasNextPage, fetchCatalogPage, fetchAlphabetPage, fetchAnimeDetail, createTokenBucket, normalizeTitleKey, parseSamehadakuSearch, parseSamehadakuAnime, mergeSupplementEpisodes, getSourceConfig, SOURCE_CONFIGS, MIRROR_ONLY_SOURCES, fetchSamehadakuEpisodes, detailErrorStatus, statusOngoing };

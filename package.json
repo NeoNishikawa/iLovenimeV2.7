@@ -9,6 +9,9 @@
     "email": "maintainer@ilovenime.local"
   },
   "main": "desktop/main.js",
+  "engines": {
+    "node": ">=24.22.1 <27"
+  },
   "scripts": {
     "start": "node server.js",
     "desktop:start": "electron .",

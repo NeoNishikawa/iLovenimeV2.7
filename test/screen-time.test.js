@@ -27,7 +27,7 @@ function harness(initialState = null, trackerOptions = {}) {
   doc.visibilityState = "visible";
   doc.hasFocus = () => focused;
   const win = new EventHub();
-  const storage = new MemoryStorage(initialState);
+  const storage = trackerOptions.storage || new MemoryStorage(initialState);
   const reminders = [];
   let focused = true;
   let scheduled = null;
@@ -204,4 +204,44 @@ test("snooze 30 menit menjadwalkan ulang hanya pengingat 5 jam", () => {
   h.tracker.dismiss();
   assert.equal(h.tracker.getState().snoozeUntil, 0);
   h.tracker.stop();
+});
+
+test("tab latar tidak menimpa hitungan tab yang sedang dipakai", () => {
+  /* Dua tab berbagi satu kunci localStorage - begini keadaannya di
+     browser sungguhan. Tab yang tidak fokus TIDAK boleh menulis, kalau
+     tidak ia menimpa hitungan tab yang sedang dipakai. Terbukti saat
+     pengujian manual: 11 tab terbuka, angka activeMs saling tertimpa
+     (50 detik -> 1,7 detik -> 66 detik). */
+  const shared = new MemoryStorage();
+  const h1 = harness(null, { storage: shared });
+  h1.tracker.start();
+  h1.advance(60_000, { activity: true });
+  const tersimpan = JSON.parse(shared.getItem(screenTime.SCREEN_TIME_KEY));
+  assert.equal(tersimpan.activeMs, 60_000, "tab aktif harus menyimpan 60 detik");
+  /* Tab kedua: state lama, tidak fokus, tapi tetap menunjuk storage yang sama. */
+  const h2 = harness(null, { storage: shared });
+  h2.setFocused(false);
+  h2.tracker.start();
+  h2.advance(30_000);
+  const sesudah = JSON.parse(shared.getItem(screenTime.SCREEN_TIME_KEY));
+  assert.equal(sesudah.activeMs, 60_000, "tab latar tidak boleh menimpa hitungan tab aktif");
+  h1.tracker.stop();
+  h2.tracker.stop();
+});
+
+test("kembali fokus mengambil angka terbesar dari tab lain, bukan menimpanya", () => {
+  const h = harness();
+  h.tracker.start();
+  h.advance(60_000, { activity: true });
+  /* Tab lain sudah menghitung lebih jauh dan menuliskannya ke storage. */
+  h.storage.setItem(screenTime.SCREEN_TIME_KEY, JSON.stringify({
+    date: "day-20000", activeMs: 120_000, lastActiveAt: 0,
+    lastTriggeredThreshold: 0, snoozeUntil: 0, enabled: true,
+  }));
+  h.setFocused(false);
+  h.win.dispatch("blur");
+  h.setFocused(true);
+  h.win.dispatch("focus");
+  assert.equal(h.tracker.getState().activeMs, 120_000, "angka terbesar dari tab lain harus dipakai");
+  assert.equal(h.tracker.getState().lastTriggeredThreshold, 0);
 });

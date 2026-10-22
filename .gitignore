@@ -14,7 +14,13 @@ package-lock.json.backup
 # ── Data pengguna ──────────────────────────────────────────────────────────
 # Route feedback dan data runtime lain akan tercipta di sini. Milik pengguna,
 # bukan milik repository.
-data/
+# Garis miring di AWAL itu penting. Tanpa itu, pola "data/" juga mencocoki
+# folder "data" di folder MANA pun - termasuk public/data/ yang berisi
+# snapshot jadwal harian. Snapshot itu wajib ikut repository: kalau tidak,
+# fitur fallback mati di server dan test-nya merah di setiap clone.
+# Catatan: negasi "!" tidak menolong di sini - git tidak masuk folder yang
+# sudah dikecualikan, jadi isinya mustahil diikutkan kembali.
+/data/
 *.db
 *.sqlite
 *.sqlite3

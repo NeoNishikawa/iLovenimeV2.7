@@ -1,10 +1,10 @@
 import { registerSeal } from "./integrity.js";
 registerSeal("referenceapp", "copyright LoveNime");
-import { api } from "./api.js?v=1.1.0";
+import { api } from "./api.js?v=1.2.0";
 import { attach, closeActive } from "./dropdown.js";
 import { pageSizeFor, pageCountFor, pageSlice, isItemComplete, isAllowedAvatarFile, buildExportPayload, mergeImportedProfile, continueCandidates, nextUnwatched, episodeLabel, remainingCount } from "./app-utils.js";
 import { animate, createTimeline, stagger, utils } from "animejs";
-import { createScreenTimeTracker, mountScreenTimeUI } from "./screen-time.js";
+import { createScreenTimeTracker, mountScreenTimeUI } from "./screen-time.js?v=1.0.0";
 import { createPerformanceController } from "./performance-mode.js";
 import { createNetworkMonitor, mountNetworkBadge } from "./net-status.js";
 import { mountMaintenanceNotice } from "./maintenance-notice.js";
@@ -780,10 +780,122 @@ function loadMirror(index, direction = "right") { const mirror = state.mirrors[i
    baris sendiri di bawah iframe, jadi catatan tidak lagi dibutuhkan.
    Optional chaining dipakai kalau nanti elemennya dikembalikan. */
   $("#mirrorNote")?.replaceChildren(); }
-function renderDetail() { const a = state.detail; const item = getStored(a.slug); $("#watchTitle").textContent = a.title; $("#watchSub").textContent = `${a.type || "Series"} · ${a.status || "Unknown"}`; const epMulai = cwNextFor(item || {}) || (a.episodes || [])[0]; $("#playerBox").innerHTML = (a.episodes || []).length ? `<div class="player-ph"><button class="play-cta" type="button" data-player-start aria-label="Mulai episode ${esc(String(epMulai?.number ?? 1))}"><svg class="ico"><use href="#i-play"/></svg><span>Mulai EP ${String(epMulai?.number ?? 1).padStart(2, "0")}</span></button><div class="msg">${item?.watchedEpisodes?.length ? "Lanjut ke episode berikutnya, atau pilih di daftar." : "Satu klik untuk mulai — atau pilih episode di daftar."}</div></div>` : `<div class="player-ph"><div class="msg">Episode belum tersedia.</div></div>`; const tombolMulai = $("[data-player-start]"); if (tombolMulai && epMulai?.slug) tombolMulai.onclick = () => playEpisode(epMulai.slug, Number(epMulai.number), null); $("#watchDetailGrid").innerHTML = `<div class="detail-item"><div class="k">Episodes</div><div class="v">${a.episodes?.length || a.total || "?"}</div></div><div class="detail-item"><div class="k">Rating</div><div class="v">${a.rating || "—"}</div></div><div class="detail-item"><div class="k">Studio</div><div class="v">${esc(a.studio || "—")}</div></div>`; $("#watchSynopsis").textContent = a.synopsis || "Sinopsis belum tersedia dari source."; $("#watchGenres").innerHTML = (a.genres || []).map((g) => `<span class="chip">${esc(g.name || g)}</span>`).join(""); const favOn = Boolean(item?.favorite), disOn = Boolean(item?.dislike);
-$("#watchActions").innerHTML = `<button class="btn react-btn${favOn ? " is-fav" : ""}" data-detail-fav aria-pressed="${favOn}" title="Favorite"><svg class="ico"><use href="#i-star"/></svg><span class="rb-label">${favOn ? "Favorit" : "Favorite"}</span></button><button class="btn react-btn${disOn ? " is-dislike" : ""}" data-detail-dislike aria-pressed="${disOn}" title="Dislike"><svg class="ico"><use href="#i-thumb-down"/></svg><span class="rb-label">Dislike</span></button><button class="btn btn-primary" data-detail-add>${item ? "Saved locally" : "+Storage"}</button><button class="btn reset-btn" data-detail-reset ${item && (item.watchedEpisodes?.length || item.progress) ? "" : "disabled"} title="Ulangi dari Episode 1"><svg class="ico"><use href="#i-refresh"/></svg><span class="rb-label">Reset</span></button><button class="btn" data-detail-prev ${state.episodeIndex <= 0 ? "disabled" : ""}>← Previous</button><button class="btn" data-detail-next ${state.episodeIndex >= (a.episodes?.length || 1) - 1 ? "disabled" : ""}>Next →</button>`; $("#episodeList").innerHTML = (a.episodes || []).map((ep, index) => `<button class="ep-item ${item?.watchedEpisodes?.includes(Number(ep.number)) ? "watched" : ""}" data-episode-slug="${esc(ep.slug)}" data-episode-number="${esc(ep.number)}"><span class="st">${item?.watchedEpisodes?.includes(Number(ep.number)) ? "✓" : ""}</span><span>${esc(String(ep.number))}</span></button>`).join("") || empty("Episode belum tersedia.", "Source belum mengembalikan episode."); $("[data-detail-add]").onclick = (event) => addStorage(a.slug, event.currentTarget); $("[data-detail-reset]").onclick = () => { const item = getStored(a.slug); if (!item) return; openConfirm("Reset progress?", `Semua centang episode ${item.title} akan dihapus dan mulai lagi dari Episode 1.`, () => resetProgress(a.slug), { silent: true, confirmLabel: "Reset", confirmClass: "btn btn-primary" }); }; $("[data-detail-fav]").onclick = () => setAnimeReaction(a.slug, "favorite"); $("[data-detail-dislike]").onclick = () => setAnimeReaction(a.slug, "dislike"); $("[data-detail-prev]").onclick = () => navigateEpisode(-1); $("[data-detail-next]").onclick = () => navigateEpisode(1); $$('[data-episode-slug]').forEach((b) => b.onclick = () => playEpisode(b.dataset.episodeSlug, Number(b.dataset.episodeNumber), b)); }
+/* Blok unduhan: tautan ke host pihak ketiga, bukan file di server kita.
+   Skema URL diperiksa lagi di sini - nilainya datang dari sumber luar,
+   dan atribut href adalah tempat paling berbahaya untuk data asing. */
+function renderDownloadBatches(batches, anime) {
+  const list = Array.isArray(batches) ? batches : [];
+  const episodes = Array.isArray(anime?.episodes) ? anime.episodes : [];
+  const blok = list.map((batch, bi) => {
+    /* Kartu unduhan TIDAK menampilkan judul anime - terlalu panjang dan
+       sudah jelas dari halaman detailnya. Yang tampil hanya rentang
+       episodenya ("Episode 1-12"). */
+    const rentang = String(batch?.range || "").replace(/\s*-\s*/g, "-").trim();
+    const mirrors = (Array.isArray(batch?.mirrors) ? batch.mirrors : [])
+      .map((mirror) => {
+        const kualitas = String(mirror?.quality || "").trim();
+        const rentangBaris = String(mirror?.range || "").replace(/\s*-\s*/g, "-").trim();
+        /* Kadang baris bukan resolusi, tapi rentang episode (anime Naruto
+           menulisnya "01-25"). Yang tampil tetap yang kita tahu isinya:
+           resolusi, atau rentang episode. */
+        const label = kualitas || (rentangBaris ? `Episode ${rentangBaris}` : "");
+        /* Tautan divalidasi lebih dulu: baris tanpa satu pun tautan yang
+           boleh dibuka tidak boleh muncul sebagai pilihan. */
+        const tautan = (Array.isArray(mirror?.links) ? mirror.links : []).map((link) => {
+          const href = String(link?.url || "").trim();
+          if (!/^https?:\/\//i.test(href)) return "";
+          const nama = String(link?.label || link?.host || "Mirror").trim();
+          return `<a class="dl-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer nofollow">${esc(nama)}</a>`;
+        }).filter(Boolean);
+        return { label, tautan };
+      })
+      .filter((mirror) => mirror.label && mirror.tautan.length);
+    if (!mirrors.length) return "";
+    const idDasar = `dl-${bi}`;
+    /* Tingkat 1: daftar resolusi (atau daftar rentang episode). */
+    const opsi = mirrors.map((mirror, mi) => `<button type="button" data-dl-option="${esc(mirror.label)}" data-dl-target="${idDasar}-${mi}"><span>${esc(mirror.label)}</span><small>${mirror.tautan.length} mirror</small></button>`).join("");
+    /* Tingkat 2: sub-menu tautan untuk tiap pilihan. Semuanya tersembunyi
+       sampai pengguna memilih satu lewat dropdown. */
+    const sub = mirrors.map((mirror, mi) => `<div class="dl-sub" id="${idDasar}-${mi}" data-dl-sub hidden><span class="dl-sub-label">${esc(mirror.label)}</span><span class="dl-links">${mirror.tautan.join("")}</span></div>`).join("");
+    /* Rentang kartu. Kalau source tak menulis rentang sama sekali, tapi
+       cuma ada satu batch, rentangnya diambil dari daftar episode yang
+       tampil - dan itu dinyatakan lewat tooltip, jangan disamarkan. */
+    let judulRentang = rentang ? `Episode ${rentang}` : "";
+    let catatanRentang = rentang ? "Rentang episode diambil dari judul batch di source." : "";
+    if (!judulRentang && list.length === 1 && episodes.length) {
+      const nomor = episodes.map((ep) => Number(ep?.number)).filter((n) => Number.isFinite(n) && n > 0);
+      if (nomor.length) {
+        const mulai = Math.min(...nomor);
+        const akhir = Math.max(...nomor);
+        judulRentang = mulai === akhir ? `Episode ${mulai}` : `Episode ${mulai}-${akhir}`;
+        catatanRentang = `Batch tunggal; rentang dihitung dari ${episodes.length} episode yang tampil, bukan dari judul batch.`;
+      }
+    }
+    const pemicu = mirrors.every((mirror) => /\d{3,4}\s*p\b/i.test(mirror.label)) ? "Pilih resolusi" : "Pilih episode";
+    return `<article class="dl-batch"><h4><span class="dl-range" title="${esc(catatanRentang)}">${esc(judulRentang || "Download")}</span></h4><div class="dl-picker" data-dl-picker><button class="dl-trigger" type="button" data-dl-toggle aria-expanded="false" aria-haspopup="true"><svg class="ico"><use href="#i-chev-down"/></svg><span data-dl-label>${esc(pemicu)}</span></button><div class="dl-options" data-dl-options hidden>${opsi}</div></div><div class="dl-subs">${sub}</div></article>`;
+  }).filter(Boolean).join("");
+  if (!blok) return "";
+  return `<div class="dl-note">Berkas di-host pihak ketiga, bukan di server kami. Tautan bisa kedaluwarsa.</div>${blok}`;
+}
+/* ---------- Dropdown unduhan (dua tingkat) ----------
+   Tingkat 1: pilih resolusi. Tingkat 2: sub-menu tautan untuk resolusi itu.
+   Dipasang di document SEKALI, bukan per render, jadi handler-nya tetap
+   hidup walau blok unduhan dirender ulang. */
+function tutupDropdownUnduhan() {
+  document.querySelectorAll("[data-dl-options]").forEach((opsi) => { opsi.hidden = true; });
+  document.querySelectorAll("[data-dl-picker]").forEach((picker) => picker.classList.remove("open"));
+  document.querySelectorAll("[data-dl-toggle]").forEach((tombol) => tombol.setAttribute("aria-expanded", "false"));
+}
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest?.("[data-dl-toggle]");
+  if (toggle) {
+    const picker = toggle.closest("[data-dl-picker]");
+    const opsi = picker?.querySelector("[data-dl-options]");
+    const kebuka = Boolean(opsi && !opsi.hidden);
+    tutupDropdownUnduhan();
+    if (!kebuka && opsi) { opsi.hidden = false; picker.classList.add("open"); toggle.setAttribute("aria-expanded", "true"); }
+    return;
+  }
+  const pilihan = event.target.closest?.("[data-dl-option]");
+  if (pilihan) {
+    const batch = pilihan.closest(".dl-batch");
+    batch?.querySelectorAll("[data-dl-sub]").forEach((sub) => { sub.hidden = true; });
+    const target = pilihan.getAttribute("data-dl-target");
+    const sub = target && batch ? batch.querySelector(`#${CSS.escape(target)}`) : null;
+    if (sub) sub.hidden = false;
+    const labelPemilih = pilihan.closest("[data-dl-picker]")?.querySelector("[data-dl-label]");
+    const teks = pilihan.querySelector("span")?.textContent?.trim();
+    if (labelPemilih && teks) labelPemilih.textContent = teks;
+    tutupDropdownUnduhan();
+    return;
+  }
+  /* Klik di luar menutup dropdown. */
+  if (!event.target.closest?.("[data-dl-picker]")) tutupDropdownUnduhan();
+});
+/* ---------- Label episode ----------
+   Yang ditampilkan bukan nomor telanjang, tapi judul dari source
+   ("Episode 1", "Episode 2", ...). Untuk anime yang punya nama episode
+   sungguhan, itu yang muncul. Kalau source tidak memberi judul,
+   dirakit dari nomornya - supaya tidak pernah buta angka. */
+function labelEpisode(ep) {
+  const judul = String(ep?.title || ep?.episode || "").trim();
+  if (judul) return judul;
+  const nomor = String(ep?.number ?? "").trim();
+  return nomor ? `Episode ${nomor}` : "Episode";
+}
+function labelEpisodeBerikutnya(anime, index) {
+  /* Kalau anime masih tayang DAN pengguna sudah di episode terakhir,
+     tombol "Next" tidak lagi berarti apa-apa. Dia berubah jadi
+     "silahkan tunggu update selanjutnya" dan tetap mati. */
+  const total = (anime?.episodes || []).length;
+  const diAkhir = index >= total - 1;
+  if (diAkhir && anime?.ongoing) return "Silahkan tunggu update selanjutnya";
+  return "Next \u2192";
+}
+function renderDetail() { const a = state.detail; const item = getStored(a.slug); $("#watchTitle").textContent = a.title; $("#watchSub").textContent = `${a.type || "Series"} · ${a.status || "Unknown"}`; const epMulai = cwNextFor(item || {}) || (a.episodes || [])[0]; $("#playerBox").innerHTML = (a.episodes || []).length ? `<div class="player-ph"><button class="play-cta" type="button" data-player-start aria-label="Mulai episode ${esc(String(epMulai?.number ?? 1))}"><svg class="ico"><use href="#i-play"/></svg><span>Mulai EP ${String(epMulai?.number ?? 1).padStart(2, "0")}</span></button><div class="msg">${item?.watchedEpisodes?.length ? "Lanjut ke episode berikutnya, atau pilih di daftar." : "Satu klik untuk mulai — atau pilih episode di daftar."}</div></div>` : `<div class="player-ph"><div class="msg">Episode belum tersedia.</div></div>`; const tombolMulai = $("[data-player-start]"); if (tombolMulai && epMulai?.slug) tombolMulai.onclick = () => playEpisode(epMulai.slug, Number(epMulai.number), null); $("#watchDetailGrid").innerHTML = `<div class="detail-item"><div class="k">Episodes</div><div class="v">${a.episodes?.length || a.total || "?"}</div></div><div class="detail-item"><div class="k">Rating</div><div class="v">${a.rating || "—"}</div></div><div class="detail-item"><div class="k">Studio</div><div class="v">${esc(a.studio || "—")}</div></div>`; $("#watchSynopsis").textContent = a.synopsis || "Sinopsis belum tersedia dari source."; $("#watchGenres").innerHTML = (a.genres || []).map((g) => `<span class="chip">${esc(g.name || g)}</span>`).join(""); $("#watchDownloads").innerHTML = renderDownloadBatches(a.batches, a); const favOn = Boolean(item?.favorite), disOn = Boolean(item?.dislike);
+$("#watchActions").innerHTML = `<button class="btn react-btn${favOn ? " is-fav" : ""}" data-detail-fav aria-pressed="${favOn}" title="Favorite"><svg class="ico"><use href="#i-star"/></svg><span class="rb-label">${favOn ? "Favorit" : "Favorite"}</span></button><button class="btn react-btn${disOn ? " is-dislike" : ""}" data-detail-dislike aria-pressed="${disOn}" title="Dislike"><svg class="ico"><use href="#i-thumb-down"/></svg><span class="rb-label">Dislike</span></button><button class="btn btn-primary" data-detail-add>${item ? "Saved locally" : "+Storage"}</button><button class="btn reset-btn" data-detail-reset ${item && (item.watchedEpisodes?.length || item.progress) ? "" : "disabled"} title="Ulangi dari Episode 1"><svg class="ico"><use href="#i-refresh"/></svg><span class="rb-label">Reset</span></button><button class="btn" data-detail-prev ${state.episodeIndex <= 0 ? "disabled" : ""}>← Previous</button><button class="btn" data-detail-next ${state.episodeIndex >= (a.episodes?.length || 1) - 1 ? "disabled" : ""}>${labelEpisodeBerikutnya(a, state.episodeIndex)}</button>`; $("#episodeList").innerHTML = (a.episodes || []).map((ep, index) => `<button class="ep-item ${item?.watchedEpisodes?.includes(Number(ep.number)) ? "watched" : ""}" data-episode-slug="${esc(ep.slug)}" data-episode-number="${esc(ep.number)}" title="${esc(labelEpisode(ep))}"><span class="st">${item?.watchedEpisodes?.includes(Number(ep.number)) ? "✓" : ""}</span><span class="ep-name">${esc(labelEpisode(ep))}</span></button>`).join("") || empty("Episode belum tersedia.", "Source belum mengembalikan episode."); if (a.ongoing && (a.episodes || []).length) $("#episodeList").insertAdjacentHTML("beforeend", '<p class="ep-wait">Tunggu eps selanjutnya</p>'); $("[data-detail-add]").onclick = (event) => addStorage(a.slug, event.currentTarget); $("[data-detail-reset]").onclick = () => { const item = getStored(a.slug); if (!item) return; openConfirm("Reset progress?", `Semua centang episode ${item.title} akan dihapus dan mulai lagi dari Episode 1.`, () => resetProgress(a.slug), { silent: true, confirmLabel: "Reset", confirmClass: "btn btn-primary" }); }; $("[data-detail-fav]").onclick = () => setAnimeReaction(a.slug, "favorite"); $("[data-detail-dislike]").onclick = () => setAnimeReaction(a.slug, "dislike"); $("[data-detail-prev]").onclick = () => navigateEpisode(-1); $("[data-detail-next]").onclick = () => navigateEpisode(1); $$('[data-episode-slug]').forEach((b) => b.onclick = () => playEpisode(b.dataset.episodeSlug, Number(b.dataset.episodeNumber), b)); }
 function navigateEpisode(delta) { const episodes = state.detail?.episodes || []; const target = episodes[state.episodeIndex + delta]; if (!target) return; playEpisode(target.slug, Number(target.number), null); updateEpisodeNav(); }
-function updateEpisodeNav() { $("[data-detail-prev]")?.toggleAttribute("disabled", state.episodeIndex <= 0); $("[data-detail-next]")?.toggleAttribute("disabled", state.episodeIndex >= (state.detail?.episodes?.length || 1) - 1); /* Sinkronkan tombol overlay video */ const prev = $("#prevEpBtn"), next = $("#nextEpBtn"); prev?.toggleAttribute("disabled", state.episodeIndex <= 0); next?.toggleAttribute("disabled", state.episodeIndex >= (state.detail?.episodes?.length || 1) - 1); }
+function updateEpisodeNav() { $("[data-detail-prev]")?.toggleAttribute("disabled", state.episodeIndex <= 0); $("[data-detail-next]")?.toggleAttribute("disabled", state.episodeIndex >= (state.detail?.episodes?.length || 1) - 1); /* Sinkronkan tombol overlay video */ const prev = $("#prevEpBtn"), next = $("#nextEpBtn"); prev?.toggleAttribute("disabled", state.episodeIndex <= 0); next?.toggleAttribute("disabled", state.episodeIndex >= (state.detail?.episodes?.length || 1) - 1); const tunggu = Boolean(state.detail?.ongoing) && state.episodeIndex >= (state.detail?.episodes?.length || 1) - 1; next?.setAttribute("title", tunggu ? "Silahkan tunggu update selanjutnya" : "Episode berikutnya"); /* Label tombol Next ikut diperbarui saat episode berpindah - bukan hanya saat render, karena render tidak selalu jalan. */ const tombolBerikutnya = $("[data-detail-next]"); if (tombolBerikutnya) tombolBerikutnya.textContent = labelEpisodeBerikutnya(state.detail, state.episodeIndex); }
 
 /* ---------- In-video control overlay ----------
    Klik di area video memunculkan kontrol (mirror, prev/next, PiP);
@@ -797,7 +909,11 @@ function showVideoControls() {
   videoOverlay.hidden = false;
   videoOverlay.classList.add("show");
 }
-function hideVideoControls() { videoOverlay?.classList.remove("show"); clearTimeout(voHideTimer); }
+function hideVideoControls() { /* Jangan hilangkan bar selama panel mirror masih
+   terbuka - orang sedang memilih mirror, bukan sedang menyingkirkan
+   kontrol. Kalau masih terbuka, coba lagi beberapa detik lagi. */
+  if (!$("#mirrorOptions")?.hidden) { voHideTimer = setTimeout(hideVideoControls, 3000); return; }
+  videoOverlay?.classList.remove("show"); clearTimeout(voHideTimer); }
 /* Dengarkan klik dari stage, bukan dari lapisan di atas iframe. Dengan begitu
    klik pertama tetap diterima kontrol play milik mirror di dalam iframe. */
 playerStage?.addEventListener("click", (event) => {
